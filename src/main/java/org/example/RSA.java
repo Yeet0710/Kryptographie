@@ -14,8 +14,15 @@ public class RSA {
         SecureRandom random = new SecureRandom();
 
         // Generiere zwei unterschiedliche Primzahlen
-        BigInteger p = generierePrimzahl(prizahlGroesse, random);
-        BigInteger q = generierePrimzahl(prizahlGroesse, random);
+        BigInteger p = new BigInteger(1024, random);
+        while(!PrimzahlTest.istPrimzahl(p, 100)) {
+            p = new BigInteger(1024, random);
+        }
+
+        BigInteger q = new BigInteger(1024, random);
+        while(!PrimzahlTest.istPrimzahl(q, 100)) {
+            q = new BigInteger(1024, random);
+        }
 
         // Berechne n = p * q
         n = p.multiply(q);
@@ -31,11 +38,6 @@ public class RSA {
 
          // Berechne den privaten Schlüssel d
         d = e.modInverse(phi); // Privater Schlüssel
-    }
-
-    // Methode zur Primzahlgenerierung
-    private BigInteger generierePrimzahl(int bits, SecureRandom random) {
-        return BigInteger.probablePrime(bits, random);
     }
 
     public BigInteger getPublicKey() {
