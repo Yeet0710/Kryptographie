@@ -8,7 +8,7 @@ public class RSA {
     private BigInteger n; // RSA-Verfahren
     private BigInteger e; // Öffnelicher Exponent
     private BigInteger d; // Privater Exponent
-    private int bitLegth = 1024; // Standard-Bit-Länge
+    private int bitLength = 1024; // Standard-Bit-Länge
 
     public BigInteger generatePrime(int bitLength) {
         SecureRandom random = new SecureRandom();
@@ -22,8 +22,8 @@ public class RSA {
     public RSA(int prizahlGroesse) {
         SecureRandom random = new SecureRandom();
 
-        BigInteger p = generatePrime(1024);
-        BigInteger q = generatePrime(1024);
+        BigInteger p = generatePrime(bitLength);
+        BigInteger q = generatePrime(bitLength);
 
         // Berechne n = p * q
         n = p.multiply(q);
