@@ -1,4 +1,4 @@
-package org.example;
+package org.rsa;
 
 public class euklidischerAlgorithmus {
     public static int berechnenGGT(int a, int b) {

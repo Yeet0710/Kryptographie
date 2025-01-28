@@ -1,4 +1,4 @@
-package org.example;
+package org.rsa;
 import java.math.*;
 import java.security.*;
 

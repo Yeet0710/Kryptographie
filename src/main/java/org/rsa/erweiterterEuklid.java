@@ -1,4 +1,4 @@
-package org.example;
+package org.rsa;
 
 public class erweiterterEuklid {
     public static int[] erweiterereGGT(int a, int b) {

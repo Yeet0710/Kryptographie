@@ -1,4 +1,4 @@
-package org.example;
+package org.rsa;
 
 public class schnelleExponentiation {
     public static long modularesPotenzieren(long basis, long exponent, long modul) {
