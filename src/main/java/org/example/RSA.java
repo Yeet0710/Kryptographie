@@ -10,19 +10,20 @@ public class RSA {
     private BigInteger d; // Privater Exponent
     private int bitLegth = 1024; // Standard-Bit-Länge
 
+    public BigInteger generatePrime(int bitLength) {
+        SecureRandom random = new SecureRandom();
+        BigInteger p = new BigInteger(bitLength, random);
+        while(!PrimzahlTest.istPrimzahl(p, 100)) {
+            p = new BigInteger(bitLength, random);
+        }
+        return p;
+    }
+
     public RSA(int prizahlGroesse) {
         SecureRandom random = new SecureRandom();
 
-        // Generiere zwei unterschiedliche Primzahlen
-        BigInteger p = new BigInteger(1024, random);
-        while(!PrimzahlTest.istPrimzahl(p, 100)) {
-            p = new BigInteger(1024, random);
-        }
-
-        BigInteger q = new BigInteger(1024, random);
-        while(!PrimzahlTest.istPrimzahl(q, 100)) {
-            q = new BigInteger(1024, random);
-        }
+        BigInteger p = generatePrime(1024);
+        BigInteger q = generatePrime(1024);
 
         // Berechne n = p * q
         n = p.multiply(q);
