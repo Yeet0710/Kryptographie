@@ -1,16 +1,17 @@
-package org.rsa;
+package org.scrum1_2;
+
 import java.math.*;
 import java.security.*;
 
-public class PrimzahlTest {
+public class PrimTester {
 
     /**
      * prüft, ob die Zahl eine wahrscheinliche Primzahl ist, indem MRT mehrfach durchgeführt wird
      * @param zahl = die zu testende Zahl
-     * @param genauigkeit = Anzahl der Iterationen des MRTs
+     * @param iteration = Anzahl der Iterationen des MRTs
      * @return true = wahrscheinlich eine Primzahl, sonst false
      */
-    public static boolean istPrimzahl(BigInteger zahl, int genauigkeit) {
+    public static boolean istPrimzahl(BigInteger zahl, int iteration) {
         // kleiner als 2 != Primzahl
         if (zahl.compareTo(BigInteger.TWO) < 0) return false;
         // 2 || 3 = Primzahl
@@ -27,7 +28,7 @@ public class PrimzahlTest {
         }
 
         // wiederhole den MRT mit verschiedenen Basen
-        for (int i = 0; i < genauigkeit; i++) {
+        for (int i = 0; i < iteration; i++) {
             if (!millerRabinTest(zahl, d)) { // = zusammengesetzte Zahl
                 return false;
             }
@@ -63,6 +64,18 @@ public class PrimzahlTest {
             if (x.equals(zahl.subtract(BigInteger.ONE))) return true;
         }
         return false;
+    }
+
+
+    public static void main (String[] args) {
+        BigInteger testZahl = new BigInteger("104729");
+        int iteration = 20;
+
+        if(istPrimzahl(testZahl, iteration)) {
+            System.out.println(testZahl + " ist wahrscheinlich eine Prmzahl.");
+        } else {
+            System.out.println(testZahl + " ist eine zusammengesetzte Zahl.");
+        }
     }
 
 }
