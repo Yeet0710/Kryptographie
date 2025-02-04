@@ -27,6 +27,7 @@ public class RSAAnwendung {
         System.out.println("Modul (n): " + modulus);
 
         // Schritt 2: Klartext eingeben und in Blöcke zerlegen
+        System.out.println("Bitte geben Sie den zu verschlüsselnden Text ein:");
         Scanner scanner = new Scanner(System .in);
         String klartext = scanner.nextLine();
         List<String> bloecke = BlockChiffre.zerlegeInBloecke(klartext, 10);
