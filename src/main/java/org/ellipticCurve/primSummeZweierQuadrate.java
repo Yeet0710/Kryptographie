@@ -11,7 +11,13 @@ import java.security.SecureRandom;
 
 public class primSummeZweierQuadrate {
 
-    public int[] summeZweierQudrate(BigInteger p) {
+
+    public static void main(String[] args) {
+        BigInteger p = BigInteger.valueOf(17);
+        int[] ergebnis = summeZweierQudrate(p);
+        System.out.println("x: " + ergebnis[0] + ", y: " + ergebnis[1]);
+    }
+    public static int[] summeZweierQudrate(BigInteger p) {
 
         int x;
         int y;
