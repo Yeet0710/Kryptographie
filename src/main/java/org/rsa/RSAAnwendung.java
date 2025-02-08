@@ -2,6 +2,7 @@ package org.rsa;
 import java.math.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 
 public class RSAAnwendung {
     public static BigInteger verschluesseln(String nachricht, BigInteger publicKey, BigInteger modulus) {
@@ -26,7 +27,9 @@ public class RSAAnwendung {
         System.out.println("Modul (n): " + modulus);
 
         // Schritt 2: Klartext eingeben und in Blöcke zerlegen
-        String klartext = "Joey ist ein besonder cooler dude.";
+        System.out.println("Bitte geben Sie den zu verschlüsselnden Text ein:");
+        Scanner scanner = new Scanner(System .in);
+        String klartext = scanner.nextLine();
         List<String> bloecke = BlockChiffre.zerlegeInBloecke(klartext, 10);
         System.out.println("Klartext-Blöcke: " + bloecke);
 
