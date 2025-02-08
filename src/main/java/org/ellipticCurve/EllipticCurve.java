@@ -65,20 +65,29 @@ public class EllipticCurve {
         return new Point(x3, y3);
     }
 
-    // Skalare Multiplikation k * P
+    // Skalare Multiplikation k * P durch Montgomery ladder optimiert
     public Point multiply(Point P, BigInteger k) {
-        Point R = Point.infinity();
-        Point Q = P;
-
-        while (k.signum() > 0) {
-            if (k.testBit(0)) {  // Prüft, ob die letzte Binärstelle 1 ist
-                R = add(R, Q);
-            }
-            Q = add(Q, Q); // P verdoppeln
-            k = k.shiftRight(1); // Nächste Binärstelle
+        if (k.signum() == 0) {
+            return Point.infinity();
         }
-        return R;
+
+        Point R0 = Point.infinity(); // R0 = 0P (Unendlich-Punkt)
+        Point R1 = P;                // R1 = 1P
+
+        int bitLength = k.bitLength();
+        for (int i = bitLength - 1; i >= 0; i--) {
+            if (k.testBit(i)) {
+                R0 = add(R0, R1); // R0 = R0 + R1
+                R1 = add(R1, R1); // R1 = 2 * R1
+            } else {
+                R1 = add(R0, R1); // R1 = R0 + R1
+                R0 = add(R0, R0); // R0 = 2 * R0
+            }
+        }
+
+        return R0;
     }
+
 
     // Testmethode
     public static void main(String[] args) {
