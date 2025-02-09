@@ -7,12 +7,11 @@ import static org.scrum1_2.PrimTester.istPrimzahl;
 public class PrimGenerator {
     private static final SecureRandom random = new SecureRandom();
     /**
-     * Generiert eine zufÃ¤llige Primzahl im Bereich [a, b] unter Verwendung des Miller-Rabin-Tests.
-     *
+     * Generiert eine zufällige Primzahl im Bereich [a, b] unter Verwendung des Miller-Rabin-Tests.
      * @param a Untere Schranke (inklusive)
      * @param b Obere Schranke (inklusive)
-     * @param mrIterations Anzahl der Miller-Rabin-PrÃ¼fungen
-     * @return Eine zufÃ¤llige Primzahl im gegebenen Bereich
+     * @param mrIterations Anzahl der Miller-Rabin-Iterationen
+     * @return Eine zufällige Primzahl im gegebenen Bereich
      */
     public static BigInteger generateRandomPrime(BigInteger a, BigInteger b, int mrIterations) {
         // Kontrolle das a > b
@@ -27,7 +26,7 @@ public class PrimGenerator {
         BigInteger primeCandidate;
         while (true) {
             primeCandidate = getRandomBigInteger(a, b);         // erzeugt zufällige ungerade Zahl
-            if (istPrimzahl(primeCandidate, mrIterations)) {    // prüft ob diese Zahl eine Primzahl ist
+            if (istPrimzahl(primeCandidate, mrIterations)) {    // prüft, ob diese Zahl eine Primzahl ist
                 return primeCandidate;
             }
         }
