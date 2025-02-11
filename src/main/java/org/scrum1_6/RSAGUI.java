@@ -2,6 +2,8 @@ package org.scrum1_6;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.StringSelection;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.math.BigInteger;
@@ -13,130 +15,141 @@ public class RSAGUI {
     private JTextArea inputArea;
     private JTextArea outputArea;
     private JLabel centerLabel;
+    private JLabel inputLabel;
     private JTextArea publicKeyField; // Eingabe des pubKey von Bob
     private BigInteger friendPubKey; // pubKey von Bob
     private BigInteger friendModulus; // Modulus von Bob
+    private JTextField ownPublicKeyField; // Eigenes Public Key-Feld
 
 
     public RSAGUI() {
         rsa = new RSAUTF8(1024);
 
+        // Hauptfenster
         JFrame frame = new JFrame("RSA Verschlüsselung");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(600, 500);
-        frame.setLayout(new BorderLayout());
+        frame.setSize(1000, 500);
 
-        JPanel panel = new JPanel(new BorderLayout());
-        JPanel textPanel = new JPanel(new GridLayout(3, 1, 10, 10));
+        // Hauptpanel mit GridBagLayout
+        JPanel panel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10,10,10,10); // Abstand zw Komponenten
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0; // gleichmäßige Verteilung
+
+        // Einheitliche Buttons
+        Dimension buttonSize = new Dimension(30,50);
+        Color buttonColor = new Color(70, 130, 180);
+
+        // Breite für Textfelder anpassen
+        Dimension textSize = new Dimension(600, 50);
+
+        // Anzeige des eigenen pubKey
+        gbc.gridx = 0; // erste Spalte
+        gbc.gridy = 0; // erste Zeile
+        gbc.weightx = 2; //Label über 2 Spalten
+        panel.add(new JLabel("Eigener öffentlicher Schlüssel (e,n):"), gbc);
+
+        gbc.gridy = 1;
+        ownPublicKeyField = new JTextField(rsa.getPublicKey() + "," + rsa.getModulus());
+        ownPublicKeyField.setEditable(false);
+        ownPublicKeyField.setPreferredSize(textSize);
+        panel.add(ownPublicKeyField, gbc);
+
+        gbc.gridx = 2; // Button in der rechten Spalte
+        gbc.weightx = 1; // wächst mit der Fenstergröße
+        JButton copyButton = new JButton("Kopieren");
+        setupButton(copyButton, buttonSize,buttonColor);
+        copyButton.addActionListener(e -> copyToClipboard(ownPublicKeyField.getText()));
+        panel.add(copyButton, gbc);
+
 
         // Eingabefeld für Klartext
-        inputArea = new JTextArea("");
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        gbc.weightx = 2;
+        inputLabel = new JLabel("Klartext");
+        panel.add(inputLabel, gbc);
+
+        gbc.gridy = 3;
+        inputArea = new JTextArea(3, 50);
         inputArea.setLineWrap(true);
         inputArea.setWrapStyleWord(true);
+        inputArea.setPreferredSize(textSize);
+        panel.add(new JScrollPane(inputArea), gbc);
+
+        gbc.gridx = 2;
+        gbc.weightx = 1;
+        JButton encryptButton = new JButton("Verschlüsseln");
+        setupButton(encryptButton, buttonSize, buttonColor);
+        encryptButton.addActionListener(e -> encryptMessage());
+        panel.add(encryptButton, gbc);
 
         // Ausgabe-Textfeld für das verschlüsselte oder entschlüsselte Ergebnis
-        outputArea = new JTextArea("");
-        outputArea.setEditable(true);
+        gbc.gridx = 0;
+        gbc.gridy = 4;
+        gbc.gridwidth = 2;
+        centerLabel = new JLabel("Verschlüsselte Nachricht");
+        panel.add(centerLabel, gbc);
+
+        gbc.gridy = 5;
+        outputArea = new JTextArea(3, 50);
+        outputArea.setEditable(false);
         outputArea.setLineWrap(true);
         outputArea.setWrapStyleWord(true);
+        outputArea.setPreferredSize(textSize);
+        panel.add(new JScrollPane(outputArea), gbc);
 
-        // Eingabefeld für pubKey und n
-        publicKeyField = new JTextArea();
-        publicKeyField.setEditable(true);
+        gbc.gridx = 2;
+        gbc.gridwidth = 1;
+        JButton decryptButton = new JButton("Entschlüsseln");
+        setupButton(decryptButton, buttonSize, buttonColor);
+        decryptButton.addActionListener(e -> decryptMessage());
+        panel.add(decryptButton, gbc);
+
+
+        // Eingabefeld für pubKey und n von Bob
+        gbc.gridx = 0;
+        gbc.gridy = 6;
+        gbc.gridwidth = 2;
+        panel.add(new JLabel("Öffentlicher Schlüssel und Modulus von Bob (Komma getrennt):"), gbc);
+
+        gbc.gridy = 7;
+        publicKeyField = new JTextArea(3, 50);
         publicKeyField.setLineWrap(true);
         publicKeyField.setWrapStyleWord(true);
+        publicKeyField.setPreferredSize(textSize);
+        panel.add(new JScrollPane(publicKeyField), gbc);
 
-        // Linke Seite der GUI: Klartext-Eingabe
-        JPanel leftPanel = new JPanel(new BorderLayout());
-        leftPanel.add(new JLabel("Klartext"), BorderLayout.NORTH);
-        leftPanel.add(new JScrollPane(inputArea), BorderLayout.CENTER);
-        textPanel.add(leftPanel);
+        gbc.gridx = 2;
+        gbc.gridwidth = 1;
+        JButton setPublicKeyButton = new JButton("Übernehmen");
+        setupButton(setPublicKeyButton, buttonSize, buttonColor);
+        setPublicKeyButton.addActionListener(e -> setFriendPubKey());
+        panel.add(setPublicKeyButton, gbc);
 
-        // Verschlüsselte Nachricht oder Entschlüsselungsergebnis
-        JPanel centerPanel = new JPanel(new BorderLayout());
-        centerLabel = new JLabel("Verschlüsselter Text");
-        centerPanel.add(centerLabel, BorderLayout.NORTH);
-        centerPanel.add(new JScrollPane(outputArea), BorderLayout.CENTER);
-        textPanel.add(centerPanel);
-
-        // Panel für PubKey und n von Bob
-        JPanel keyInputPanel = new JPanel(new BorderLayout());
-        keyInputPanel.add(new JLabel("Öffentlicher Schlüssel und Modulus von Bob (Komma getrennt): "), BorderLayout.NORTH);
-        keyInputPanel.add(publicKeyField,BorderLayout.CENTER);
-        keyInputPanel.add(new JScrollPane(publicKeyField), BorderLayout.CENTER);
-        textPanel.add(keyInputPanel);
-
-
-        panel.add(textPanel, BorderLayout.CENTER);
-
-
-        // **Schön gestaltete Buttons**
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.Y_AXIS));
-        buttonPanel.setBorder(BorderFactory.createEmptyBorder(100,10,20,10));
-
-        JButton encryptButton = createStyledButton("Verschlüsseln", new Color(60, 179, 113));
-        JButton decryptButton = createStyledButton("Entschlüsseln", new Color(30, 144, 255));
-        JButton setPublicKeyButton = createStyledButton("Übernehmen", new Color(255, 165, 0));
-
-        buttonPanel.add(encryptButton);
-        buttonPanel.add(decryptButton);
-        buttonPanel.add(setPublicKeyButton);
-
-        buttonPanel.add(Box.createVerticalGlue()); // Zentriert Buttons vertikal
-        buttonPanel.add(encryptButton);
-        buttonPanel.add(Box.createRigidArea(new Dimension(0, 120))); // Abstand zwischen Buttons
-        buttonPanel.add(decryptButton);
-        buttonPanel.add(Box.createRigidArea(new Dimension(0, 120))); // Abstand zwischen Buttons
-        buttonPanel.add(setPublicKeyButton);
-
-
-        panel.add(buttonPanel, BorderLayout.EAST);
-
-        JLabel publicKeyLabel = new JLabel("Eigener öffentlicher Schlüssel: " + rsa.getPublicKey());
-        frame.add(publicKeyLabel, BorderLayout.NORTH);
-
-
-
-        encryptButton.addActionListener(e -> encryptMessage());
-        decryptButton.addActionListener(e -> decryptMessage());
-        setPublicKeyButton.addActionListener(e -> setFriendPubKey());;
-
+        // Panel zum Frame hinzufügen
         frame.add(panel,BorderLayout.CENTER);
         frame.setVisible(true);
     }
 
-
-
-    // Methode zum Erstellen schöner Buttons mit Hover-Effekt
-    private JButton createStyledButton(String text, Color bgColor) {
-        JButton button = new JButton(text);
-        button.setPreferredSize(new Dimension(140, 35)); // Kleinere Buttons!
-        button.setAlignmentX(Component.CENTER_ALIGNMENT); // Zentriert Buttons
-
-        button.setFocusPainted(false);
+    // Methode zur einheitlichen Button-Styling
+    private void setupButton(JButton button, Dimension size, Color bgColor) {
+        button.setPreferredSize(size);
         button.setBackground(bgColor);
-        button.setForeground(Color.WHITE); //weiße schrift
+        button.setForeground(Color.WHITE);
         button.setFont(new Font("Arial", Font.BOLD, 14));
-       // button.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
-
-        button.setOpaque(true);
-
-        // **Hover-Effekt**
-        button.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                button.setBackground(bgColor.darker());
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                button.setBackground(bgColor);
-            }
-        });
-
-        return button;
+        button.setFocusPainted(false);
     }
+
+    // Kopieren in die Zwischenablage
+    private void copyToClipboard(String text) {
+        StringSelection selection = new StringSelection(text);
+        Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+        clipboard.setContents(selection, selection);
+        JOptionPane.showMessageDialog(null, "Öffentlicher Schlüssel kopiert!");
+    }
+
 
     private void setFriendPubKey() {
         try {
