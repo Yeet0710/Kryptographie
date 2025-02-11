@@ -1,107 +1,55 @@
 package org.scrum1_1;
+import java.math.*;
+import java.security.*;
 
-
-import java.math.BigInteger;
-import java.security.SecureRandom;
+import static org.scrum1_2.PrimTester.istPrimzahl;
 
 public class PrimGenerator {
-
-    // soll eine zuf&auml;llige Primzahl im Bereich [a, b] unter Verwendung MRT generieren
-
-
     private static final SecureRandom random = new SecureRandom();
-     /**
-         * Generiert eine zufällige Primzahl im Bereich [a, b] unter Verwendung des Miller-Rabin-Tests.
-         *
-         * @param a Untere Schranke (inklusive)
-         * @param b Obere Schranke (inklusive)
-         * @param millerRabinSteps Anzahl der Miller-Rabin-Prüfungen
-         * @return Eine zufällige Primzahl im gegebenen Bereich
-         */
-        public static BigInteger generateRandomPrime(BigInteger a, BigInteger b, int millerRabinSteps) {
-            if (a.compareTo(b) > 0) {
-                throw new IllegalArgumentException("Die untere Schranke muss kleiner als die obere Schranke sein.");
-            }
-            if (a.compareTo(BigInteger.ZERO) < 0) {
-                throw new IllegalArgumentException("Die untere Schranke muss größer oder gleich 0 sein.");
-            }
-
-            BigInteger primeCandidate;
-            while (true) {
-                primeCandidate = getRandomBigInteger(a, b); // Zufällige ungerade Zahl generieren
-                if (isProbablePrime(primeCandidate, millerRabinSteps)) {
-                    return primeCandidate;
-                }
-            }
+    /**
+     * Generiert eine zufällige Primzahl im Bereich [a, b] unter Verwendung des Miller-Rabin-Tests.
+     * @param a Untere Schranke (inklusive)
+     * @param b Obere Schranke (inklusive)
+     * @param mrIterations Anzahl der Miller-Rabin-Iterationen
+     * @return Eine zufällige Primzahl im gegebenen Bereich
+     */
+    public static BigInteger generateRandomPrime(BigInteger a, BigInteger b, int mrIterations) {
+        // Kontrolle das a > b
+        if (a.compareTo(b) > 0) {
+            throw new IllegalArgumentException("Die untere Schranke muss kleiner als die obere Schranke sein.");
+        }
+        // Kontrolle das a > 0
+        if (a.compareTo(BigInteger.ZERO) < 0) {
+            throw new IllegalArgumentException("Die untere Schranke muss größer oder gleich 0 sein.");
         }
 
-        /**
-         * Generiert eine zufällige ungerade Zahl im Bereich [a, b].
-         */
-        private static BigInteger getRandomBigInteger(BigInteger a, BigInteger b) {
-            BigInteger range = b.subtract(a).add(BigInteger.ONE);
-            BigInteger randomBigInt;
-            do {
-                randomBigInt = new BigInteger(range.bitLength(), random).mod(range).add(a);
-            } while (randomBigInt.mod(BigInteger.TWO).equals(BigInteger.ZERO)); // Sicherstellen, dass die Zahl ungerade ist
-            return randomBigInt;
-        }
-
-        /**
-         * Führt den Miller-Rabin-Primalitätstest durch.
-         *
-         * @param n Zahl, die getestet werden soll
-         * @param k Anzahl der Iterationen (je mehr, desto sicherer)
-         * @return true, wenn die Zahl wahrscheinlich eine Primzahl ist, sonst false
-         */
-        public static boolean isProbablePrime(BigInteger n, int k) {
-            if (n.compareTo(BigInteger.TWO) < 0) return false;
-            if (n.equals(BigInteger.TWO) || n.equals(BigInteger.valueOf(3))) return true;
-            if (n.mod(BigInteger.TWO).equals(BigInteger.ZERO)) return false;
-
-            BigInteger d = n.subtract(BigInteger.ONE);
-            int s = 0;
-
-            while (d.mod(BigInteger.TWO).equals(BigInteger.ZERO)) {
-                d = d.divide(BigInteger.TWO);
-                s++;
+        BigInteger primeCandidate;
+        while (true) {
+            primeCandidate = getRandomBigInteger(a, b);         // erzeugt zufällige ungerade Zahl
+            if (istPrimzahl(primeCandidate, mrIterations)) {    // prüft, ob diese Zahl eine Primzahl ist
+                return primeCandidate;
             }
-
-            for (int i = 0; i < k; i++) {
-                BigInteger a = getRandomWitness(n);
-                BigInteger x = a.modPow(d, n);
-
-                if (x.equals(BigInteger.ONE) || x.equals(n.subtract(BigInteger.ONE))) {
-                    continue;
-                }
-
-                boolean isComposite = true;
-                for (int r = 0; r < s - 1; r++) {
-                    x = x.modPow(BigInteger.TWO, n);
-                    if (x.equals(n.subtract(BigInteger.ONE))) {
-                        isComposite = false;
-                        break;
-                    }
-                }
-                if (isComposite) return false;
-            }
-            return true;
-        }
-
-        /**
-         * Wählt eine zufällige Basis für den Miller-Rabin-Test.
-         */
-        private static BigInteger getRandomWitness(BigInteger n) {
-            return new BigInteger(n.bitLength(), random).mod(n.subtract(BigInteger.TWO)).add(BigInteger.TWO);
-        }
-
-        public static void main(String[] args) {
-            BigInteger lowerBound = new BigInteger("200000");
-            BigInteger upperBound = new BigInteger("300000");
-            int millerRabinIterations = 20;
-
-            BigInteger prime = generateRandomPrime(lowerBound, upperBound, millerRabinIterations);
-            System.out.println("Generierte Primzahl: " + prime);
         }
     }
 
+    /**
+     * Generiert eine zufällige ungerade Zahl im Bereich [a, b].
+     */
+    private static BigInteger getRandomBigInteger(BigInteger a, BigInteger b) {
+        BigInteger range = b.subtract(a).add(BigInteger.ONE); // ermittelt die differenz b - a = range
+        BigInteger randomBigInt;
+        do {
+            randomBigInt = new BigInteger(range.bitLength(), random).mod(range).add(a); // erzeugt Zahl in range und addiert a
+        } while (randomBigInt.mod(BigInteger.TWO).equals(BigInteger.ZERO)); // Sicherstellen, dass die Zahl ungerade ist
+        return randomBigInt;
+    }
+
+    public static void main(String[] args) {
+        BigInteger lowerBound = new BigInteger("200000"); // Untere Grenze der Range
+        BigInteger upperBound = new BigInteger("300000"); // Obere Grenze der Range
+        int mrIterations = 20;  // Anzahl der Iterationen für den Miller-Rabin-Test
+
+        BigInteger prime = generateRandomPrime(lowerBound, upperBound, mrIterations);
+        System.out.println("Generierte Primzahl: " + prime);
+    }
+}
