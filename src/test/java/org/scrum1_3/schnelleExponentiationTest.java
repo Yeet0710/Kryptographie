@@ -41,9 +41,9 @@ class SchnelleExponentiationTest {
         BigInteger exponent = new BigInteger("3");
         BigInteger modulus = new BigInteger("7");
 
-        assertEquals(BigInteger.valueOf(6),
+        assertEquals(BigInteger.valueOf(1),
                 schnelleExponentiation.schnelleExponentiation(basis, exponent, modulus),
-                "-3^3 mod 7 sollte 6 sein.");
+                "-3^3 mod 7 sollte 1 sein.");
     }
 
     @Test

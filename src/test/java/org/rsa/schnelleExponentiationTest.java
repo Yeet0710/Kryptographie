@@ -16,8 +16,8 @@ class SchnelleExponentiationTest {
 
     @Test
     void testModularesPotenzierenMitGroßenZahlen() {
-        assertEquals(16, schnelleExponentiation.modularesPotenzieren(2, 30, 1000));
+        assertEquals(824, schnelleExponentiation.modularesPotenzieren(2, 30, 1000));
         assertEquals(32, schnelleExponentiation.modularesPotenzieren(2, 5, 100));
-        assertEquals(6, schnelleExponentiation.modularesPotenzieren(5, 3, 11));
+        assertEquals(4, schnelleExponentiation.modularesPotenzieren(5, 3, 11));
     }
 }
