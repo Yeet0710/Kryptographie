@@ -1,52 +1,91 @@
 package org.ellipticCurve;
 
-import org.rsa.PrimzahlTest;
-import org.rsa.euklidischerAlgorithmus;
-import org.rsa.schnelleExponentiation;
-import org.rsa.erweiterterEuklid;
-
-import java.lang.reflect.Array;
 import java.math.BigInteger;
-import java.security.SecureRandom;
 
 public class primSummeZweierQuadrate {
 
+    private final BigInteger a;
+    private final BigInteger b;
+    private final BigInteger p;
 
-    public static void main(String[] args) {
-        BigInteger p = BigInteger.valueOf(17);
-        int[] ergebnis = summeZweierQudrate(p);
-        System.out.println("x: " + ergebnis[0] + ", y: " + ergebnis[1]);
-    }
-    public static int[] summeZweierQudrate(BigInteger p) {
-
-        int x;
-        int y;
-
-        //Erstellt eine zufällige Zahl z
-        SecureRandom random = new SecureRandom();
-        BigInteger z = new BigInteger(p.bitLength(), random);
-
-        //Prüft ob z eine Quadratische Restklasse modulo p ist
-        while(schnelleExponentiation.modularesPotenzieren(z.longValue(), (p.subtract(BigInteger.valueOf(1))).divide(BigInteger.valueOf(2)).longValue(),p.longValue()) != -1) {
-            z = new BigInteger(p.bitLength(), random);
-        }
-
-        //Berechnet w = z^((p+1)/4) mod p
-        BigInteger w = BigInteger.valueOf(schnelleExponentiation.modularesPotenzieren(z.longValue(), (p.subtract(BigInteger.valueOf(1))).divide(BigInteger.valueOf(4)).longValue(),p.longValue()));
-
-        //Berechnet ggT(w,p)
-        int[] ggT = erweiterterEuklid.erweiterereGGT(w.intValue(),p.intValue());
-
-        //Wähle x und y so, dass x^2 + y^2 = p
-        if (ggT[1] % 2 == 0) {
-            x = ggT[1];
-            y = ggT[2];
-        } else {
-            x = ggT[2];
-            y = ggT[1];
-        }
-        return new int[]{x,y};
+    public primSummeZweierQuadrate(BigInteger a, BigInteger b, BigInteger p) {
+        this.a = a;
+        this.b = b;
+        this.p = p;
     }
 
+    public static class Punkt {
+        BigInteger x, y;
+        boolean unendlich; // Repräsentiert das neutrale Element O
 
+        public Punkt(BigInteger x, BigInteger y) {
+            this.x = x;
+            this.y = y;
+            this.unendlich = false;
+        }
+
+        public static Punkt infinity() {
+            Punkt o = new Punkt(BigInteger.ZERO, BigInteger.ZERO);
+            o.unendlich = true;
+            return o;
+        }
+
+        public boolean isInfinity() {
+            return this.unendlich;
+        }
+    }
+
+    // Sehnen-Tangenten-Verfahren (Punktaddition)
+    public Punkt add(Punkt P, Punkt Q) {
+        if (P.isInfinity()) return Q;
+        if (Q.isInfinity()) return P;
+
+        if (P.x.equals(Q.x) && P.y.equals(Q.y)) {
+            return doubleP(P);
+        }
+
+        if (P.x.equals(Q.x) && P.y.add(Q.y).mod(p).equals(BigInteger.ZERO)) {
+            return Punkt.infinity();
+        }
+
+        // Sehnenformel (λ = (y2 - y1) / (x2 - x1) mod p)
+        BigInteger lambda = Q.y.subtract(P.y)
+                .multiply(Q.x.subtract(P.x).modInverse(p))
+                .mod(p);
+
+        BigInteger xr = lambda.multiply(lambda).subtract(P.x).subtract(Q.x).mod(p);
+        BigInteger yr = lambda.multiply(P.x.subtract(xr)).subtract(P.y).mod(p);
+
+        return new Punkt(xr, yr);
+    }
+
+    // Tangentenmethode (Punktverdopplung)
+    public Punkt doubleP(Punkt P) {
+        if (P.isInfinity()) return P;
+
+        // Tangentenformel (λ = (3x^2 + a) / (2y) mod p)
+        BigInteger lambda = P.x.pow(2).multiply(BigInteger.valueOf(3)).add(a)
+                .multiply(P.y.multiply(BigInteger.TWO).modInverse(p))
+                .mod(p);
+
+        BigInteger xr = lambda.multiply(lambda).subtract(P.x.multiply(BigInteger.TWO)).mod(p);
+        BigInteger yr = lambda.multiply(P.x.subtract(xr)).subtract(P.y).mod(p);
+
+        return new Punkt(xr, yr);
+    }
+
+    // Schnelle Addition (Double-and-Add Methode)
+    public Punkt multiply(Punkt P, BigInteger k) {
+        Punkt result = Punkt.infinity();
+        Punkt base = P;
+
+        while (k.compareTo(BigInteger.ZERO) > 0) {
+            if (k.testBit(0)) { // Prüft, ob das niedrigste Bit 1 ist
+                result = add(result, base);
+            }
+            base = doubleP(base);
+            k = k.shiftRight(1); // Entspricht Division durch 2
+        }
+        return result;
+    }
 }
