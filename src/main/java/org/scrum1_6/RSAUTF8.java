@@ -21,7 +21,7 @@ public class RSAUTF8 {
         }
     }
 
-    // Text in BigInteger-Blöcke umwandeln (UTF-8 bleibt erhalten)
+    // Text in BigInteger-Blöcke umwandeln
     public List<BigInteger> textToBigIntegerBlocks(String text) {
         List<BigInteger> blocks = new ArrayList<>();
         int BLOCK_SIZE = (RSAUtils.getAliceModulus().bitLength() / 8) - 1;
