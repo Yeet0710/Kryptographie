@@ -44,7 +44,7 @@ public class RSAUTF8 {
     }
 
     // Erste Verschlüsselung: Klartext → Zahlen → RSA
-    // falls friendPubKey und friendModulus nicht gesetz sind, verwende dann die von Bobeee
+    // falls friendPubKey und friendModulus nicht gesetz sind, verwende dann die von Bob
     public List<BigInteger> encrypt(String message) {
         List<BigInteger> blocks = textToBigIntegerBlocks(message);
         List<BigInteger> encryptedBlocks = new ArrayList<>();

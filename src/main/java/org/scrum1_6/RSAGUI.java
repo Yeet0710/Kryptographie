@@ -10,16 +10,16 @@ import java.util.List;
 
 public class RSAGUI {
 
-    private RSAUTF8 rsa;
-    private JTextArea inputArea;
-    private JTextArea outputArea;
-    private JLabel centerLabel;
-    private JTextArea publicKeyField;
+    private final RSAUTF8 rsa;
+    private final JTextArea inputArea;
+    private final JTextArea outputArea;
+    private final JLabel centerLabel;
+    private final JTextArea publicKeyField;
     private BigInteger friendPubKey;
     private BigInteger friendModulus;
-    private JTextField ownPublicKeyField;
-    private JTextArea signatureArea;
-    private JTextArea verifyArea;
+    private final JTextField ownPublicKeyField;
+    private final JTextArea signatureArea;
+
 
     public RSAGUI() {
         rsa = new RSAUTF8(1024);
@@ -29,7 +29,7 @@ public class RSAGUI {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(1000, 500);
 
-        // Hauptpanel mit GridBagLayout
+        // Haupt Panel mit GridBagLayout
         JPanel panel = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(10, 10, 10, 10);
@@ -130,7 +130,7 @@ public class RSAGUI {
 
         gbc.gridy = 9;
         signatureArea = new JTextArea(2, 50);
-        signatureArea.setEditable(false);
+        signatureArea.setEditable(true);
         signatureArea.setLineWrap(true);
         signatureArea.setWrapStyleWord(true);
         signatureArea.setPreferredSize(textSize);
@@ -151,12 +151,7 @@ public class RSAGUI {
         panel.add(new JLabel("Verifikation"), gbc);
 
         gbc.gridy = 10;
-        verifyArea = new JTextArea(2, 50);
-        verifyArea.setEditable(false);
-        verifyArea.setLineWrap(true);
-        verifyArea.setWrapStyleWord(true);
-        verifyArea.setPreferredSize(textSize);
-        panel.add(new JScrollPane(verifyArea), gbc);
+
 
         gbc.gridx = 2;
         gbc.gridwidth = 1;
