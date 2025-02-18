@@ -111,8 +111,14 @@ public class RSAUTF8 {
         System.out.println("Modulus (n): " + RSAUtils.getBobModulus());
         System.out.println("Privater Schlüssel (d): " + RSAUtils.getBobPrivateKey());
 
-        System.out.println("\nGebe die Nachricht ein, die verschlüsselt werden soll:");
-        String message = scanner.nextLine();
+        String message = "";
+        System.out.println("\nSoll die Textdatei verwendet werden? (j/n)");
+        if (scanner.nextLine().equalsIgnoreCase("j")) {
+            message = TXTFile.readTXTFile();
+        } else {
+            System.out.println("\nGebe die Nachricht ein, die verschlüsselt werden soll:");
+            message = scanner.nextLine();
+        }
         System.out.println("\nOriginal Nachricht: " + message);
 
         // Signatur & Verifikation
