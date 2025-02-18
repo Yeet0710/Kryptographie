@@ -44,12 +44,16 @@ public class RSAUTF8 {
     }
 
     // Erste Verschlüsselung: Klartext → Zahlen → RSA
+    // falls friendPubKey und friendModulus nicht gesetz sind, verwende dann die von Bobeee
     public List<BigInteger> encrypt(String message) {
         List<BigInteger> blocks = textToBigIntegerBlocks(message);
         List<BigInteger> encryptedBlocks = new ArrayList<>();
 
+        BigInteger pubKey = (friendPubKey != null) ? friendPubKey : RSAUtils.getBobPublicKey();
+        BigInteger modulus = (friendModulus != null) ? friendModulus : RSAUtils.getBobModulus();
+
         for (BigInteger block : blocks) {
-            encryptedBlocks.add(schnelleExponentiation.schnelleExponentiation(block, RSAUtils.getBobPublicKey(), RSAUtils.getBobModulus()));
+            encryptedBlocks.add(schnelleExponentiation.schnelleExponentiation(block, pubKey, modulus));
         }
         return encryptedBlocks;
     }

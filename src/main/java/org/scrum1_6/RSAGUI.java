@@ -140,7 +140,7 @@ public class RSAGUI {
         gbc.gridwidth = 1;
         JButton setSignatur = new JButton("Signieren");
         setupButton(setSignatur, buttonSize, buttonColor);
-        setPublicKeyButton.addActionListener(e -> signMessage());
+        setSignatur.addActionListener(e -> signMessage());
         panel.add(setSignatur, gbc);
 
         // Verifizieren
@@ -162,7 +162,7 @@ public class RSAGUI {
         gbc.gridwidth = 1;
         JButton setVerify = new JButton("Verifizieren");
         setupButton(setVerify, buttonSize, buttonColor);
-        setPublicKeyButton.addActionListener(e -> verifySignature());
+        setVerify.addActionListener(e -> verifySignature());
         panel.add(setVerify, gbc);
 
 
@@ -223,14 +223,26 @@ public class RSAGUI {
     }
 
     private void setFriendPubKey() {
+        String input = publicKeyField.getText().trim();
+
+        if (input.isEmpty() || input.equalsIgnoreCase("reset") || input.equalsIgnoreCase("null")) {
+            // Partner-Schlüssel zurück auf null zurücksetzen und Bob wieder verwenden
+            friendPubKey = null;
+            friendModulus = null;
+            rsa.setPublicKey(null, null);
+            JOptionPane.showMessageDialog(null, "Partner-Schlüssel wurde zurückgesetzt. Bob's Schlüssel wird verwendet.");
+            return;
+        }
+
         try {
-            String[] parts = publicKeyField.getText().split(",");
+            String[] parts = input.split(",");
             if (parts.length == 2) {
                 friendPubKey = new BigInteger(parts[0].trim());
                 friendModulus = new BigInteger(parts[1].trim());
-                JOptionPane.showMessageDialog(null, "Öffentlicher Schlüssel des Kommunikationspartners gesetzt!");
+                rsa.setPublicKey(friendPubKey, friendModulus);
+                JOptionPane.showMessageDialog(null, "Partner-Schlüssel übernommen!");
             } else {
-                JOptionPane.showMessageDialog(null, "Bitte geben Sie den öffentlichen Schlüssel und Modulus getrennt durch ein Komma ein.");
+                JOptionPane.showMessageDialog(null, "Bitte geben Sie den öffentlichen Schlüssel und Modulus ein (Komma getrennt).");
             }
         } catch (Exception e) {
             JOptionPane.showMessageDialog(null, "Ungültiger öffentlicher Schlüssel!");
@@ -238,24 +250,32 @@ public class RSAGUI {
     }
 
     private void encryptMessage() {
-        if (friendPubKey == null || friendModulus == null) {
-            JOptionPane.showMessageDialog(null, "Bitte zuerst den öffentlichen Schlüssel des Kommunikationspartners setzen!");
-            return;
-        }
+        String message = inputArea.getText().trim();
 
-        String message = inputArea.getText();
         if (message.isEmpty()) {
             JOptionPane.showMessageDialog(null, "Bitte geben Sie eine Nachricht ein.");
             return;
         }
 
+        boolean useBobKey = (friendPubKey == null || friendModulus == null);
+
+        if (useBobKey) {
+            JOptionPane.showMessageDialog(null, "Kein Partner-Schlüssel gesetzt. Verwende statischen Schlüssel von Bob.");
+        }
+
+        // Verschlüsselung durchführen mit passendem Schlüssel
         List<BigInteger> encryptedBlocks = rsa.encrypt(message);
         String encryptedText = rsa.numbersToString(encryptedBlocks);
 
-        outputArea.setText(encryptedText);
-        centerLabel.setText("Verschlüsselte Nachricht (Senden an den Empfänger)");
-    }
+        // Debugging
+        System.out.println("Genutzter Schlüssel:");
+        System.out.println("Public Key: " + (useBobKey ? "Bob" : friendPubKey));
+        System.out.println("Modulus: " + (useBobKey ? "Bob" : friendModulus));
 
+        // Ausgabe aktualisieren
+        outputArea.setText(encryptedText);
+        centerLabel.setText("Verschlüsselte Nachricht");
+    }
     private void decryptMessage() {
         centerLabel.setText("Entschlüsselte Nachricht");
         inputArea.setText("");
