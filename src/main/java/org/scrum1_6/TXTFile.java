@@ -9,7 +9,7 @@ import java.util.Scanner;
  */
 public class TXTFile {
 
-    public String readTXTFile() {
+    public static String readTXTFile() {
         try {
             File file = new File("resources/eingabe.txt");
             Scanner scanner = new Scanner(file);
