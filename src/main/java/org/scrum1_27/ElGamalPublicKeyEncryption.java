@@ -78,18 +78,18 @@ public class ElGamalPublicKeyEncryption {
     }
 
     public static void main(String[] args) {
-        BigInteger lowerBound = new BigInteger("2000000000"); // Untere Grenze
-        BigInteger upperBound = new BigInteger("3000000000"); // Obere Grenze
+        BigInteger bitLength = new BigInteger("256"); // Länge der Primzahl in Bit
+
         int mrIterations = 20;  // Miller-Rabin-Test Iterationen
 
-        BigInteger p = SecPrimGenerator.generateSafePrime(lowerBound, upperBound, mrIterations); // Generiert sichere Primzahl
+        BigInteger p = SecPrimGenerator.generateSafePrime(bitLength, mrIterations); // Generiert sichere Primzahl
         BigInteger g = SecPrimGenerator.findPrimitiveRoot(p); // Berechnet Primitivwurzel von p
 
         BigInteger[] keys = generateKeys(p, g);
         BigInteger x = keys[0]; // Privater Schlüssel
         BigInteger y = keys[1]; // Öffentlicher Schlüssel
 
-        BigInteger M = new BigInteger("123456789"); // Beispiel-Nachricht
+        BigInteger M = new BigInteger("1234567891011"); // Beispiel-Nachricht
 
         /**
           Message muss aktuell kleiner sein als die untere Schranke,

@@ -28,7 +28,7 @@ public class SummeZweierQuadrate {
              * Generiert eine Zahl z aus Z_p mit z × p - 1 / 2 kongruent -1 (mod p) ist
              */
             while (true) {
-                z = SecPrimGenerator.generateSafePrime(BigInteger.ZERO, BigInteger.valueOf(10000000), 100);
+                z = SecPrimGenerator.generateSafePrime(BigInteger.valueOf(256), 100);
                 if (z.compareTo(BigInteger.ZERO) == 0) {
                     continue;
                 }
