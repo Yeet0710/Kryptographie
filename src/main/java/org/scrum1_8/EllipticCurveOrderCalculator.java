@@ -7,7 +7,11 @@ public class EllipticCurveOrderCalculator {
 
     private static final SecureRandom secureRandom = new SecureRandom();
 
-    // Berechnet die Gruppenordnung N gemäß Korollar 3.1
+    /**
+     * Berechnet die Gruppenordnung N gemäß Korollar 3.1
+     * @param p Primzahl für die die Gruppenordnung gefunden werden soll
+     * @return p = p + 1 - h
+     */
     public static BigInteger computeGroupOrder(BigInteger p) {
         if (!PrimTester.istPrimzahl(p, 20)) {
             throw new IllegalStateException("Eingegebene Zahl(" + p + ") ist keine Primzahl");
@@ -31,7 +35,6 @@ public class EllipticCurveOrderCalculator {
         return p.add(BigInteger.ONE).subtract(BigInteger.valueOf(h));
     }
 
-    // Findet x, y mit p = x^2 + y^2, wobei y ungerade ist und x > 0, y > 0
     /**
      * Generiert zufällige x und y mit p = x^2 + y^2, wobei y ungerade ist und x > 0, y > 0
      * @param p Primzahl für die die Darstellung als Summe zweier Quadratzahlen gesucht wird
