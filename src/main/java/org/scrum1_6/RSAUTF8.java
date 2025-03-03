@@ -1,159 +1,178 @@
 package org.scrum1_6;
 
-import java.math.BigInteger;
-import java.nio.charset.StandardCharsets;
-import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
-
 import org.scrum1_3.schnelleExponentiation;
 
+import java.io.ByteArrayOutputStream;
+import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Diese Klasse implementiert eine RSA-Ver- und Entschlüsselung für UTF-8-Strings.
+ * Sie nutzt die vorhandenen Methoden aus RSAUtils (Schlüsselverwaltung)
+ * und schnelleExponentiation (Modul-Exponentiation).
+ */
 public class RSAUTF8 {
+
+    // Falls man mit "Partner"-Schlüsseln (z.B. Bob) arbeitest,
+    // kannst man hier den Public Key und Modulus "des Partners" setzen.
     private BigInteger friendPubKey;
     private BigInteger friendModulus;
 
+    /**
+     * Konstruktor: Lädt beim Erzeugen direkt die Alice- und Bob-Schlüssel aus Dateien,
+     * wie in RSAUtils implementiert.
+     */
     public RSAUTF8(int bitLength) {
         try {
-            RSAUtils.loadKeysFromFiles(); // Lade Alice & Bobs Schlüssel aus Datei
-        } catch (Exception ex) {
-            System.out.println("Fehler beim Laden der Schlüssel: " + ex.getMessage());
+            RSAUtils.loadKeysFromFiles(); // Alice- & Bob-Schlüssel werden aus Dateien gelesen
+        } catch (Exception e) {
+            System.out.println("Fehler beim Laden der Schlüssel: " + e.getMessage());
         }
     }
 
-    // Text in BigInteger-Blöcke umwandeln
+    /**
+     * Wandelt einen UTF-8-String in BigInteger-Blöcke um.
+     * Hier wird nach Byte-Blockgröße (anstatt Zeichen) getrennt, um Probleme
+     * mit mehrbyteigen UTF-8-Zeichen zu vermeiden.
+     */
     public List<BigInteger> textToBigIntegerBlocks(String text) {
-        List<BigInteger> blocks = new ArrayList<>();
-        int BLOCK_SIZE = (RSAUtils.getAliceModulus().bitLength() / 8) - 1;
+        // UTF-8-kodierte Bytes
+        byte[] textBytes = text.getBytes(StandardCharsets.UTF_8);
 
-        for (int i = 0; i < text.length(); i += BLOCK_SIZE) {
-            String block = text.substring(i, Math.min(i + BLOCK_SIZE, text.length()));
-            byte[] blockBytes = block.getBytes(StandardCharsets.UTF_8);
+        // Die maximale Blockgröße in Bytes (RSA benötigt Blöcke < n).
+        // "-1" weil man etwas Platz für die Verschlüsselung selbst (Padding) haben.
+        int blockSize = (RSAUtils.getAliceModulus().bitLength() / 8) - 1;
+
+        List<BigInteger> blocks = new ArrayList<>();
+        for (int i = 0; i < textBytes.length; i += blockSize) {
+            int length = Math.min(blockSize, textBytes.length - i);
+            byte[] blockBytes = new byte[length];
+            System.arraycopy(textBytes, i, blockBytes, 0, length);
+
+            // BigInteger-Konstruktor mit signum=1 (positiv)
             blocks.add(new BigInteger(1, blockBytes));
         }
         return blocks;
     }
 
-    // BigInteger-Blöcke zurück in Text umwandeln
+    /**
+     * Wandelt BigInteger-Blöcke zurück in einen UTF-8-String.
+     * Hierbei werden führende Null-Bytes ggf. entfernt.
+     */
     public String bigIntegerBlocksToText(List<BigInteger> blocks) {
-        StringBuilder text = new StringBuilder();
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
         for (BigInteger block : blocks) {
-            text.append(new String(block.toByteArray(), StandardCharsets.UTF_8));
+            // Die interne Byte-Darstellung kann ein führendes 0-Byte enthalten,
+            // wenn das höchstwertige Bit nicht gesetzt war. Das entfernt man hier.
+            byte[] blockBytes = block.toByteArray();
+            if (blockBytes.length > 1 && blockBytes[0] == 0) {
+                byte[] tmp = new byte[blockBytes.length - 1];
+                System.arraycopy(blockBytes, 1, tmp, 0, tmp.length);
+                blockBytes = tmp;
+            }
+            baos.write(blockBytes, 0, blockBytes.length);
         }
-        return text.toString();
+        return new String(baos.toByteArray(), StandardCharsets.UTF_8);
     }
 
-    // Erste Verschlüsselung: Klartext → Zahlen → RSA
-    // falls friendPubKey und friendModulus nicht gesetz sind, verwende dann die von Bob
-    public List<BigInteger> encrypt(String message) {
-        List<BigInteger> blocks = textToBigIntegerBlocks(message);
-        List<BigInteger> encryptedBlocks = new ArrayList<>();
-
-        BigInteger pubKey = (friendPubKey != null) ? friendPubKey : RSAUtils.getBobPublicKey();
-        BigInteger modulus = (friendModulus != null) ? friendModulus : RSAUtils.getBobModulus();
-
-        for (BigInteger block : blocks) {
-            encryptedBlocks.add(schnelleExponentiation.schnelleExponentiation(block, pubKey, modulus));
-        }
-        return encryptedBlocks;
-    }
-
-    // Zahlen in Zeichen umwandeln (Basis 36 für kompaktere Darstellung)
+    /**
+     * Verschlüsselt BigInteger-Blöcke und wandelt sie danach in Hex-Strings um.
+     * (Für eine kompakte Darstellung könnte man auch Base64 verwenden; hier Hex.)
+     */
     public String numbersToString(List<BigInteger> encryptedBlocks) {
-        StringBuilder result = new StringBuilder();
+        // Byte-Länge von n (Bob) in Bytes, aufgerundet
+        int modByteLength = (RSAUtils.getBobModulus().bitLength() + 7) / 8;
+
+        StringBuilder sb = new StringBuilder();
         for (BigInteger block : encryptedBlocks) {
-            result.append(block.toString(36)).append(" "); // Basis 36 für kompakte Darstellung
+            // Hex-String
+            String hex = block.toString(16);
+            // Mit führenden Nullen auf modByteLength * 2 (Hex-Zeichen) auffüllen
+            while (hex.length() < modByteLength * 2) {
+                hex = "0" + hex;
+            }
+            sb.append(hex).append(" ");
         }
-        return result.toString().trim();
+        return sb.toString().trim();
     }
 
-    // Zeichen zurück in Zahlen umwandeln
+    /**
+     * Wandelt den zuvor erstellten Hex-String wieder in BigInteger-Blöcke um.
+     */
     public List<BigInteger> stringToNumbers(String encodedText) {
         List<BigInteger> blocks = new ArrayList<>();
-        String[] parts = encodedText.split(" ");
+        String[] parts = encodedText.split("\\s+");
         for (String part : parts) {
-            blocks.add(new BigInteger(part, 36));
+            blocks.add(new BigInteger(part, 16));
         }
         return blocks;
     }
 
-    // Entschlüsselung: Zahlen in Klartext zurückführen
+    /**
+     * Verschlüsselt einen UTF-8-String, indem er in Blöcke aufgeteilt und
+     * blockweise mit (e, n) ver-„hoch“-potenziert wird.
+     * - Standardmäßig mit Bobs Schlüssel, falls kein friendKey gesetzt wurde.
+     */
+    public List<BigInteger> encrypt(String message) {
+        // Text -> BigInteger-Blöcke
+        List<BigInteger> blocks = textToBigIntegerBlocks(message);
+        List<BigInteger> encryptedBlocks = new ArrayList<>();
+
+        // Falls friendKey gesetzt, nimm den; sonst nimm Bob
+        BigInteger pubKey = (friendPubKey != null) ? friendPubKey : RSAUtils.getBobPublicKey();
+        BigInteger modulus = (friendModulus != null) ? friendModulus : RSAUtils.getBobModulus();
+
+        // RSA-Verschlüsselung pro Block
+        for (BigInteger block : blocks) {
+            BigInteger cipherBlock = schnelleExponentiation.schnelleExponentiation(block, pubKey, modulus);
+            encryptedBlocks.add(cipherBlock);
+        }
+        return encryptedBlocks;
+    }
+
+    /**
+     * Entschlüsselt zuvor verschlüsselte Blöcke mit dem eigenen privaten Schlüssel (Bob).
+     */
     public String decrypt(List<BigInteger> encryptedBlocks) {
         List<BigInteger> decryptedBlocks = new ArrayList<>();
 
         for (BigInteger block : encryptedBlocks) {
-            decryptedBlocks.add(schnelleExponentiation.schnelleExponentiation(block, RSAUtils.getBobPrivateKey(), RSAUtils.getBobModulus()));
+            BigInteger plainBlock = schnelleExponentiation.schnelleExponentiation(
+                    block, RSAUtils.getBobPrivateKey(), RSAUtils.getBobModulus());
+            decryptedBlocks.add(plainBlock);
         }
-
+        // Blöcke -> Klartext
         return bigIntegerBlocksToText(decryptedBlocks);
     }
 
+    /**
+     * Setzt (falls nötig) einen Partner-Schlüssel (e, n), z.B. wenn du explizit
+     * nicht Bob, sondern einen anderen Empfänger verschlüsseln möchtest.
+     */
     public void setPublicKey(BigInteger pubKey, BigInteger modulus) {
         this.friendPubKey = pubKey;
         this.friendModulus = modulus;
-        System.out.println("Öffentlicher Schlüssel des Empfängers gesetzt!");
+        System.out.println("Öffentlicher Schlüssel des Empfängers gesetzt: e=" + pubKey + ", n=" + modulus);
     }
 
+    // Beispiel main(), kann auch in einer GUI o.ä. verwendet werden
     public static void main(String[] args) {
-        Scanner scanner = new Scanner(System.in);
+        // Initialisierung mit Bitlänge 1024 (oder was du in RSAUtils eingestellt hast)
+        RSAUTF8 rsa = new RSAUTF8(1024);
 
-        System.out.println("Lade RSA-Schlüssel für Alice und Bob...");
-        RSAUTF8 aliceRSA = new RSAUTF8(1024);
-        RSAUTF8 bobRSA = new RSAUTF8(1024);
+        String klartext = "Hallo, dies ist ein längerer Text mit Umlauten: ÄÖÜß und Emojis: 🚀!";
+        System.out.println("Original:\n" + klartext);
 
-        System.out.println("\n==== Alice's Schlüssel ====");
-        System.out.println("Öffentlicher Schlüssel (e): " + RSAUtils.getAlicePublicKey());
-        System.out.println("Modulus (n): " + RSAUtils.getAliceModulus());
-        System.out.println("Privater Schlüssel (d): " + RSAUtils.getAlicePrivateKey());
+        // Verschlüsseln
+        List<BigInteger> encryptedBlocks = rsa.encrypt(klartext);
+        String encryptedString = rsa.numbersToString(encryptedBlocks);
+        System.out.println("\nVerschlüsselt:\n" + encryptedString);
 
-        System.out.println("\n==== Bob's Schlüssel ====");
-        System.out.println("Öffentlicher Schlüssel (e): " + RSAUtils.getBobPublicKey());
-        System.out.println("Modulus (n): " + RSAUtils.getBobModulus());
-        System.out.println("Privater Schlüssel (d): " + RSAUtils.getBobPrivateKey());
-
-        String message = "";
-        System.out.println("\nSoll die Textdatei verwendet werden? (j/n)");
-        if (scanner.nextLine().equalsIgnoreCase("j")) {
-            message = TXTFile.readTXTFile();
-        } else {
-            System.out.println("\nGebe die Nachricht ein, die verschlüsselt werden soll:");
-            message = scanner.nextLine();
-        }
-        System.out.println("\nOriginal Nachricht: " + message);
-
-        // Signatur & Verifikation
-        try {
-            System.out.println("\nSignieren der Nachricht mit Alice's privatem Schlüssel...");
-            BigInteger signature = RSAUtils.sign(message);
-            System.out.println("Generierte Signatur: " + signature);
-
-            System.out.println("\nVerifizieren der Signatur mit Alice's öffentlichem Schlüssel...");
-            boolean isValid = RSAUtils.verify(message, signature);
-            System.out.println("Verifikation erfolgreich: " + isValid);
-        } catch (NoSuchAlgorithmException e) {
-            System.out.println("Fehler bei der Hash-Signierung: " + e.getMessage());
-        }
-
-        // 1. Verschlüsselung (Text → Zahlen → RSA)
-        System.out.println("\n Starte Verschlüsselung (Klartext → Zahlen)... ");
-        List<BigInteger> encryptedNumbers = aliceRSA.encrypt(message);
-        encryptedNumbers.forEach(System.out::println);
-
-        // 2. Umwandlung der verschlüsselten Zahlen in Zeichen
-        System.out.println("\n Wandelt die verschlüsselten Zahlen in eine Zeichenkette um...");
-        String encodedText = aliceRSA.numbersToString(encryptedNumbers);
-        System.out.println(encodedText);
-
-        // 3. Zeichenkette zurück in Zahlen umwandeln
-        System.out.println("\nWandelt die Zeichenkette zurück in Zahlen...");
-        List<BigInteger> decodedNumbers = bobRSA.stringToNumbers(encodedText);
-        decodedNumbers.forEach(System.out::println);
-
-        // 4. Entschlüsselung der Zahlen in Klartext
-        System.out.println("\nEntschlüsselt die Zahlen zurück in Klartext...");
-        String decryptedMessage = bobRSA.decrypt(decodedNumbers);
-        System.out.println(decryptedMessage);
-
-        System.out.println("\nProzess abgeschlossen!");
+        // Entschlüsseln
+        List<BigInteger> decodeBlocks = rsa.stringToNumbers(encryptedString);
+        String decrypted = rsa.decrypt(decodeBlocks);
+        System.out.println("\nEntschlüsselt:\n" + decrypted);
     }
 }
