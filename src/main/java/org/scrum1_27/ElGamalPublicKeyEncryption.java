@@ -37,12 +37,15 @@ public class ElGamalPublicKeyEncryption {
     public static BigInteger[] encrypt(BigInteger M, BigInteger p, BigInteger g, BigInteger y) {
         long startTime = System.nanoTime();
 
+        // Wähle eine zufällige Zahl k aus dem Bereich [1, p-2]
         BigInteger k;
         do {
             k = new BigInteger(p.bitLength() - 1, random);
         } while (k.compareTo(BigInteger.ZERO) <= 0 || k.compareTo(p.subtract(BigInteger.TWO)) >= 0);
 
+        // Berechnung von a = g^k mod p
         BigInteger a = schnelleExponentiation.schnelleExponentiation(g, k, p);
+        // Berechnung von b = M * y^k mod p
         BigInteger b = M.multiply(schnelleExponentiation.schnelleExponentiation(y, k, p)).mod(p);
 
         long endTime = System.nanoTime();
@@ -79,7 +82,6 @@ public class ElGamalPublicKeyEncryption {
 
     public static void main(String[] args) {
         BigInteger bitLength = new BigInteger("256"); // Länge der Primzahl in Bit
-
         int mrIterations = 20;  // Miller-Rabin-Test Iterationen
 
         BigInteger p = SecPrimGenerator.generateSafePrime(bitLength, mrIterations); // Generiert sichere Primzahl
@@ -90,11 +92,6 @@ public class ElGamalPublicKeyEncryption {
         BigInteger y = keys[1]; // Öffentlicher Schlüssel
 
         BigInteger M = new BigInteger("1234567891011"); // Beispiel-Nachricht
-
-        /**
-          Message muss aktuell kleiner sein als die untere Schranke,
-          um zu garantieren, dass sie verschlüsselt werden kann.
-         */
 
         System.out.println("Öffentlicher Schlüssel: (p=" + p + ", g=" + g + ", y=" + y + ")");
         System.out.println("Privater Schlüssel: x=" + x);
