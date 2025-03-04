@@ -12,18 +12,18 @@ import static org.junit.jupiter.api.Assertions.*;
 class TXTFileTest {
 
     private TXTFile txtFile;
-    private final String testFilePath = "resources/eingabe.txt";
+    private final String testFilePath = "resources/eingabe.txt"; // Erwarteter Pfad laut TXTFile
 
     @BeforeEach
     void setUp() throws IOException {
-        txtFile = new TXTFile();
+        txtFile = new TXTFile(); // Verwende den Standardkonstruktor ohne Parameter
 
-        // Testdatei erstellen
         File file = new File(testFilePath);
-        file.getParentFile().mkdirs(); // Falls Ordner fehlt
-        FileWriter writer = new FileWriter(file);
-        writer.write("Hallo Welt!\nDas ist ein Test.");
-        writer.close();
+        file.getParentFile().mkdirs(); // Erstelle ggf. fehlende Verzeichnisse
+
+        try (FileWriter writer = new FileWriter(file)) {
+            writer.write("Hallo Welt!\nDas ist ein Test.");
+        }
     }
 
     @Test
@@ -35,10 +35,10 @@ class TXTFileTest {
 
     @Test
     void testReadTXTFile_FileNotFound() {
-        // Datei umbenennen oder löschen, um den Fehler zu simulieren
         File file = new File(testFilePath);
-        assertTrue(file.delete());
-
+        if (file.exists() && !file.delete()) {
+            fail("Die Testdatei konnte nicht gelöscht werden!");
+        }
         String result = txtFile.readTXTFile();
         assertEquals("Fehler beim Lesen der Datei", result);
     }

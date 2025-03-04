@@ -2,6 +2,8 @@ package org.scrum1_3;
 
 import org.junit.jupiter.api.Test;
 import java.math.BigInteger;
+import java.security.SecureRandom;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class SchnelleExponentiationTest {
@@ -55,4 +57,21 @@ class SchnelleExponentiationTest {
         BigInteger result = schnelleExponentiation.schnelleExponentiation(basis, exponent, modulus);
         assertNotNull(result, "Das Ergebnis sollte berechnet werden.");
     }
+    @Test
+    void testSehrGroßeZahlen() {
+        // Erzeugen sehr großer Zufallszahlen (2048 Bit)
+        SecureRandom random = new SecureRandom();
+        int bitLength = 2048;
+        BigInteger basis = new BigInteger(bitLength, random);
+        BigInteger exponent = new BigInteger(bitLength, random);
+        // Sicherstellen, dass das Modul positiv und größer als 1 ist:
+        BigInteger modulus = new BigInteger(bitLength, random).abs().add(BigInteger.TWO);
+
+        BigInteger result = schnelleExponentiation.schnelleExponentiation(basis, exponent, modulus);
+
+        // Überprüfen, ob das Ergebnis berechnet wurde und kleiner als das Modul ist
+        assertNotNull(result, "Das Ergebnis sollte berechnet werden.");
+        assertTrue(result.compareTo(modulus) < 0, "Das Ergebnis muss kleiner als das Modul sein.");
+    }
+
 }
