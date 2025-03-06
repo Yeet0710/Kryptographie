@@ -190,7 +190,11 @@ public class RSAGUI {
         }
 
         try {
+            long startTime = System.nanoTime();
             BigInteger signature = RSAUtils.sign(message);
+            long endTime = System.nanoTime();
+            double durationMs = (endTime - startTime) / 1_000_000_000.0;
+            System.out.println("Signatur dauerte: " + durationMs + " Sekunden");
             signatureArea.setText(signature.toString());
             JOptionPane.showMessageDialog(null, "Nachricht signiert!");
         } catch (NoSuchAlgorithmException e) {
@@ -258,9 +262,19 @@ public class RSAGUI {
             JOptionPane.showMessageDialog(null, "Kein Partner-Schlüssel gesetzt. Verwende statischen Schlüssel von Bob.");
         }
 
+        // Erfasst die Startzeit
+        Long startTime = System.nanoTime();
+
         // Verschlüsselung durchführen mit passendem Schlüssel
         List<BigInteger> encryptedBlocks = rsa.encrypt(message);
         String encryptedText = rsa.numbersToString(encryptedBlocks);
+
+        // Erfasst die Endzeit
+        long endTime = System.nanoTime();
+
+        // Berechnung der Laufzeit in Millisekunden
+        double durationMs = (endTime - startTime) / 1_000_000_000.0;
+        System.out.println("Verschlüsselung dauerte: " + durationMs + " Sekunden");
 
         // Debugging
         System.out.println("Genutzter Schlüssel:");
