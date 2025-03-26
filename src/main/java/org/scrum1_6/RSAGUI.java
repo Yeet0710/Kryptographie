@@ -4,170 +4,172 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
+import java.io.File;
+import java.io.FileWriter;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
 
 public class RSAGUI {
 
     private final RSAUTF8 rsa;
+
+    // GUI-Felder
+    private final JTextField ownPublicKeyField;
     private final JTextArea inputArea;
     private final JTextArea outputArea;
-    private final JLabel centerLabel;
     private final JTextArea publicKeyField;
-    private BigInteger friendPubKey;
-    private BigInteger friendModulus;
-    private final JTextField ownPublicKeyField;
     private final JTextArea signatureArea;
 
+    // Partner-Key
+    private BigInteger friendPubKey;
+    private BigInteger friendModulus;
+
+    // Gemeinsame Button-Größe (Breite, Höhe)
+    private static final Dimension BUTTON_SIZE = new Dimension(150, 30);
+    private static final Color BUTTON_COLOR = new Color(70, 130, 180);
 
     public RSAGUI() {
         rsa = new RSAUTF8(1024);
 
-        // Hauptfenster
         JFrame frame = new JFrame("RSA Verschlüsselung");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(1000, 500);
+        frame.setSize(1400, 800);
 
-        // Haupt Panel mit GridBagLayout
-        JPanel panel = new JPanel(new GridBagLayout());
+        // Hauptpanel mit GridBagLayout
+        JPanel mainPanel = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(10, 10, 10, 10);
-        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.fill = GridBagConstraints.BOTH;
         gbc.weightx = 1.0;
+        gbc.weighty = 0.0;
 
-        // Einheitliche Buttons
-        Dimension buttonSize = new Dimension(30, 50);
-        Color buttonColor = new Color(70, 130, 180);
-        Dimension textSize = new Dimension(600, 50);
+        // Zeilen und Spalten definieren wir so:
+        //   - col0: Label
+        //   - col1: Textfeld oder TextArea
+        //   - col2: Button
+        // Wir legen 6 Zeilen an (für ownKey, Klartext, Chiffrat, PartnerKey, Signatur, und extra Zeile für "Verifizieren" oder was nötig ist).
 
-        // Anzeige des eigenen pubKey
+        // ROW 0: Eigener öffentlicher Schlüssel
         gbc.gridx = 0;
         gbc.gridy = 0;
-        gbc.weightx = 2;
-        panel.add(new JLabel("Eigener öffentlicher Schlüssel (e,n):"), gbc);
+        gbc.weightx = 0.0;
+        mainPanel.add(new JLabel("Eigener öffentlicher Schlüssel (Alice, e, n):"), gbc);
 
-        gbc.gridy = 1;
-        ownPublicKeyField = new JTextField(RSAUtils.getAlicePublicKey() + "," + RSAUtils.getAliceModulus());
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        ownPublicKeyField = new JTextField(RSAUtils.getAlicePublicKey() + ", " + RSAUtils.getAliceModulus(), 60);
         ownPublicKeyField.setEditable(false);
-        ownPublicKeyField.setPreferredSize(textSize);
-        panel.add(ownPublicKeyField, gbc);
+        mainPanel.add(ownPublicKeyField, gbc);
 
         gbc.gridx = 2;
-        gbc.weightx = 1;
-        JButton copyButton = new JButton("Kopieren");
-        setupButton(copyButton, buttonSize, buttonColor);
+        gbc.weightx = 0.0;
+        JButton copyButton = new JButton("Schlüssel kopieren");
+        setupButton(copyButton, BUTTON_SIZE, BUTTON_COLOR);
         copyButton.addActionListener(e -> copyToClipboard(ownPublicKeyField.getText()));
-        panel.add(copyButton, gbc);
+        mainPanel.add(copyButton, gbc);
 
-        // Eingabefeld für Klartext
+        // ROW 1: Klartext
+        gbc.gridy = 1;
         gbc.gridx = 0;
-        gbc.gridy = 2;
-        gbc.weightx = 2;
-        panel.add(new JLabel("Klartext"), gbc);
+        gbc.weightx = 0.0;
+        mainPanel.add(new JLabel("Klartext:"), gbc);
 
-        gbc.gridy = 3;
-        inputArea = new JTextArea(3, 50);
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        inputArea = new JTextArea(5, 60);
         inputArea.setLineWrap(true);
         inputArea.setWrapStyleWord(true);
-        inputArea.setPreferredSize(textSize);
-        panel.add(new JScrollPane(inputArea), gbc);
+        JScrollPane scrollInput = new JScrollPane(inputArea);
+        mainPanel.add(scrollInput, gbc);
 
         gbc.gridx = 2;
-        gbc.weightx = 1;
+        gbc.weightx = 0.0;
         JButton encryptButton = new JButton("Verschlüsseln");
-        setupButton(encryptButton, buttonSize, buttonColor);
+        setupButton(encryptButton, BUTTON_SIZE, BUTTON_COLOR);
         encryptButton.addActionListener(e -> encryptMessage());
-        panel.add(encryptButton, gbc);
+        mainPanel.add(encryptButton, gbc);
 
-        // Ausgabe-Textfeld für verschlüsselten oder entschlüsselten Text
+        // ROW 2: Chiffrat
+        gbc.gridy = 2;
         gbc.gridx = 0;
-        gbc.gridy = 4;
-        gbc.gridwidth = 2;
-        centerLabel = new JLabel("Verschlüsselte Nachricht");
-        panel.add(centerLabel, gbc);
+        mainPanel.add(new JLabel("Verschlüsseltes Chiffrat (CP437):"), gbc);
 
-        gbc.gridy = 5;
-        outputArea = new JTextArea(3, 50);
-        outputArea.setEditable(false);
+        gbc.gridx = 1;
+        outputArea = new JTextArea(5, 60);
         outputArea.setLineWrap(true);
         outputArea.setWrapStyleWord(true);
-        outputArea.setPreferredSize(textSize);
-        panel.add(new JScrollPane(outputArea), gbc);
+        JScrollPane scrollOutput = new JScrollPane(outputArea);
+        mainPanel.add(scrollOutput, gbc);
 
         gbc.gridx = 2;
-        gbc.gridwidth = 1;
         JButton decryptButton = new JButton("Entschlüsseln");
-        setupButton(decryptButton, buttonSize, buttonColor);
+        setupButton(decryptButton, BUTTON_SIZE, BUTTON_COLOR);
         decryptButton.addActionListener(e -> decryptMessage());
-        panel.add(decryptButton, gbc);
+        mainPanel.add(decryptButton, gbc);
 
-        // Eingabefeld für pubKey und n von Bob
+        // ROW 3: Partner-Schlüssel
+        gbc.gridy = 3;
         gbc.gridx = 0;
-        gbc.gridy = 6;
-        gbc.gridwidth = 2;
-        panel.add(new JLabel("Öffentlicher Schlüssel und Modulus von Bob (Komma getrennt):"), gbc);
+        mainPanel.add(new JLabel("Öffentlicher Schlüssel des Partners (e, n):"), gbc);
 
-        gbc.gridy = 7;
-        publicKeyField = new JTextArea(3, 50);
+        gbc.gridx = 1;
+        publicKeyField = new JTextArea(3, 60);
         publicKeyField.setLineWrap(true);
         publicKeyField.setWrapStyleWord(true);
-        publicKeyField.setPreferredSize(textSize);
-        panel.add(new JScrollPane(publicKeyField), gbc);
+        JScrollPane scrollPartner = new JScrollPane(publicKeyField);
+        mainPanel.add(scrollPartner, gbc);
 
         gbc.gridx = 2;
-        gbc.gridwidth = 1;
-        JButton setPublicKeyButton = new JButton("Übernehmen");
-        setupButton(setPublicKeyButton, buttonSize, buttonColor);
+        JButton setPublicKeyButton = new JButton("Schlüssel übernehmen");
+        setupButton(setPublicKeyButton, BUTTON_SIZE, BUTTON_COLOR);
         setPublicKeyButton.addActionListener(e -> setFriendPubKey());
-        panel.add(setPublicKeyButton, gbc);
+        mainPanel.add(setPublicKeyButton, gbc);
 
-        // Signaturfeld
+        // ROW 4: Signatur
+        gbc.gridy = 4;
         gbc.gridx = 0;
-        gbc.gridy = 8;
-        gbc.gridwidth = 2;
-        panel.add(new JLabel("Signatur"), gbc);
+        mainPanel.add(new JLabel("Signatur:"), gbc);
 
-        gbc.gridy = 9;
-        signatureArea = new JTextArea(2, 50);
-        signatureArea.setEditable(true);
+        gbc.gridx = 1;
+        signatureArea = new JTextArea(3, 60);
         signatureArea.setLineWrap(true);
         signatureArea.setWrapStyleWord(true);
-        signatureArea.setPreferredSize(textSize);
-        panel.add(new JScrollPane(signatureArea), gbc);
+        JScrollPane scrollSignature = new JScrollPane(signatureArea);
+        mainPanel.add(scrollSignature, gbc);
 
         gbc.gridx = 2;
-        gbc.gridwidth = 1;
-        JButton setSignatur = new JButton("Signieren");
-        setupButton(setSignatur, buttonSize, buttonColor);
-        setSignatur.addActionListener(e -> signMessage());
-        panel.add(setSignatur, gbc);
+        JButton signButton = new JButton("Signieren");
+        setupButton(signButton, BUTTON_SIZE, BUTTON_COLOR);
+        signButton.addActionListener(e -> signMessage());
+        mainPanel.add(signButton, gbc);
 
-        // Verifizieren
+        // ROW 5: Nur Button "Verifizieren" in Spalte 2
+        gbc.gridy = 5;
         gbc.gridx = 0;
-        gbc.gridy = 9;
+        mainPanel.add(new JLabel(""), gbc); // leeres Label
 
-        gbc.gridwidth = 2;
-        panel.add(new JLabel("Verifikation"), gbc);
-
-        gbc.gridy = 10;
-
+        gbc.gridx = 1;
+        mainPanel.add(new JLabel(""), gbc); // leeres Feld
 
         gbc.gridx = 2;
-        gbc.gridwidth = 1;
-        JButton setVerify = new JButton("Verifizieren");
-        setupButton(setVerify, buttonSize, buttonColor);
-        setVerify.addActionListener(e -> verifySignature());
-        panel.add(setVerify, gbc);
+        JButton verifyButton = new JButton("Verifizieren");
+        setupButton(verifyButton, BUTTON_SIZE, BUTTON_COLOR);
+        verifyButton.addActionListener(e -> verifySignature());
+        mainPanel.add(verifyButton, gbc);
 
-
-        // Panel zum Frame hinzufügen
-        frame.add(panel, BorderLayout.CENTER);
+        frame.add(mainPanel);
         frame.setVisible(true);
     }
 
+    /**
+     * Passt das Aussehen der Buttons an.
+     */
     private void setupButton(JButton button, Dimension size, Color bgColor) {
         button.setPreferredSize(size);
+        button.setMinimumSize(size);
+        button.setMaximumSize(size);
         button.setBackground(bgColor);
         button.setForeground(Color.WHITE);
         button.setFont(new Font("Arial", Font.BOLD, 14));
@@ -177,130 +179,124 @@ public class RSAGUI {
     private void copyToClipboard(String text) {
         StringSelection selection = new StringSelection(text);
         Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
-        clipboard.setContents(selection, selection);
-        JOptionPane.showMessageDialog(null, "Öffentlicher Schlüssel kopiert!");
-    }
-
-
-    private void signMessage() {
-        String message = inputArea.getText();
-        if (message.isEmpty()) {
-            JOptionPane.showMessageDialog(null, "Bitte geben Sie eine Nachricht ein.");
-            return;
-        }
-
-        try {
-            long startTime = System.nanoTime();
-            BigInteger signature = RSAUtils.sign(message);
-            long endTime = System.nanoTime();
-            double durationMs = (endTime - startTime) / 1_000_000_000.0;
-            System.out.println("Signatur dauerte: " + durationMs + " Sekunden");
-            signatureArea.setText(signature.toString());
-            JOptionPane.showMessageDialog(null, "Nachricht signiert!");
-        } catch (NoSuchAlgorithmException e) {
-            JOptionPane.showMessageDialog(null, "Fehler beim Signieren!");
-        }
-    }
-
-
-    private void verifySignature() {
-        String message = inputArea.getText();
-        String signatureText = signatureArea.getText();
-
-        if (message.isEmpty() || signatureText.isEmpty()) {
-            JOptionPane.showMessageDialog(null, "Bitte Nachricht und Signatur eingeben!");
-            return;
-        }
-
-        try {
-            BigInteger signature = new BigInteger(signatureText);
-            boolean isValid = RSAUtils.verify(message, signature);
-            JOptionPane.showMessageDialog(null, "Verifikation " + (isValid ? "erfolgreich!" : "fehlgeschlagen!"));
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(null, "Ungültige Signatur!");
-        }
+        clipboard.setContents(selection, null);
+        JOptionPane.showMessageDialog(null, "Schlüssel wurde kopiert!");
     }
 
     private void setFriendPubKey() {
         String input = publicKeyField.getText().trim();
-
-        if (input.isEmpty() || input.equalsIgnoreCase("reset") || input.equalsIgnoreCase("null")) {
-            // Partner-Schlüssel zurück auf null zurücksetzen und Bob wieder verwenden
+        if (input.isEmpty()
+                || input.equalsIgnoreCase("reset")
+                || input.equalsIgnoreCase("null"))
+        {
             friendPubKey = null;
             friendModulus = null;
             rsa.setPublicKey(null, null);
-            JOptionPane.showMessageDialog(null, "Partner-Schlüssel wurde zurückgesetzt. Bob's Schlüssel wird verwendet.");
+            JOptionPane.showMessageDialog(null,
+                    "Partner-Schlüssel zurückgesetzt. Es wird Bobs Schlüssel verwendet.");
             return;
         }
-
         try {
             String[] parts = input.split(",");
             if (parts.length == 2) {
                 friendPubKey = new BigInteger(parts[0].trim());
                 friendModulus = new BigInteger(parts[1].trim());
                 rsa.setPublicKey(friendPubKey, friendModulus);
-                JOptionPane.showMessageDialog(null, "Partner-Schlüssel übernommen!");
+                JOptionPane.showMessageDialog(null,
+                        "Partner-Schlüssel erfolgreich übernommen!");
             } else {
-                JOptionPane.showMessageDialog(null, "Bitte geben Sie den öffentlichen Schlüssel und Modulus ein (Komma getrennt).");
+                JOptionPane.showMessageDialog(null,
+                        "Bitte geben Sie den öffentlichen Schlüssel und Modulus (Komma getrennt) ein.");
             }
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(null, "Ungültiger öffentlicher Schlüssel!");
+            JOptionPane.showMessageDialog(null,
+                    "Ungültiger öffentlicher Schlüssel!\n" + e.getMessage());
         }
     }
 
     private void encryptMessage() {
         String message = inputArea.getText().trim();
-
         if (message.isEmpty()) {
-            JOptionPane.showMessageDialog(null, "Bitte geben Sie eine Nachricht ein.");
+            JOptionPane.showMessageDialog(null, "Bitte geben Sie einen Klartext ein.");
             return;
         }
-
         boolean useBobKey = (friendPubKey == null || friendModulus == null);
-
         if (useBobKey) {
-            JOptionPane.showMessageDialog(null, "Kein Partner-Schlüssel gesetzt. Verwende statischen Schlüssel von Bob.");
+            JOptionPane.showMessageDialog(null,
+                    "Kein Partner-Schlüssel gesetzt. Es wird Bobs öffentlicher Schlüssel verwendet.");
         }
 
-        // Erfasst die Startzeit
-        Long startTime = System.nanoTime();
+        long startEncrypt = System.currentTimeMillis();
+        RSAUTF8.RSAResult result = rsa.encrypt(message, true);
+        long encryptionTime = System.currentTimeMillis() - startEncrypt;
+        System.out.println("Verschlüsselungszeit: " + encryptionTime + " ms");
 
-        // Verschlüsselung durchführen mit passendem Schlüssel
-        List<BigInteger> encryptedBlocks = rsa.encrypt(message);
-        String encryptedText = rsa.numbersToString(encryptedBlocks);
+        BigInteger usedModulus = useBobKey ? RSAUtils.getBobModulus() : friendModulus;
+        String cp437String = RSAUTF8.blocksToCp437String(result.blocks, usedModulus);
+        outputArea.setText(cp437String);
 
-        // Erfasst die Endzeit
-        long endTime = System.nanoTime();
-
-        // Berechnung der Laufzeit in Millisekunden
-        double durationMs = (endTime - startTime) / 1_000_000_000.0;
-        System.out.println("Verschlüsselung dauerte: " + durationMs + " Sekunden");
-
-        // Debugging
-        System.out.println("Genutzter Schlüssel:");
-        System.out.println("Public Key: " + (useBobKey ? "Bob" : friendPubKey));
-        System.out.println("Modulus: " + (useBobKey ? "Bob" : friendModulus));
-
-        // Ausgabe aktualisieren
-        outputArea.setText(encryptedText);
-        centerLabel.setText("Verschlüsselte Nachricht");
-    }
-    private void decryptMessage() {
-        centerLabel.setText("Entschlüsselte Nachricht");
-        inputArea.setText("");
-
+        // Chiffrat in Datei schreiben
         try {
-            String encryptedText = outputArea.getText();
-            if (encryptedText.isEmpty()) {
-                JOptionPane.showMessageDialog(null, "Kein verschlüsselter Text zum Entschlüsseln!");
-                return;
+            File chiffratFile = new File("chiffrat.cir");
+            try (FileWriter writer = new FileWriter(chiffratFile, StandardCharsets.UTF_8)) {
+                writer.write(cp437String);
             }
-
-            List<BigInteger> encryptedBlocks = rsa.stringToNumbers(encryptedText);
-            String decrypted = rsa.decrypt(encryptedBlocks);
-            outputArea.setText(decrypted);
+            JOptionPane.showMessageDialog(null, "Chiffrat wurde in die Datei 'chiffrat.cir' geschrieben.");
         } catch (Exception e) {
-            outputArea.setText("Fehler: Ungültige verschlüsselte Nachricht.");
+            JOptionPane.showMessageDialog(null,
+                    "Fehler beim Schreiben in die Datei: " + e.getMessage());
+        }
+    }
+
+    private void decryptMessage() {
+        String encryptedText = outputArea.getText().trim();
+        if (encryptedText.isEmpty()) {
+            JOptionPane.showMessageDialog(null, "Kein Chiffrat zum Entschlüsseln!");
+            return;
+        }
+        long startDecrypt = System.currentTimeMillis();
+        List<BigInteger> recoveredBlocks = RSAUTF8.cp437StringToBlocks(encryptedText, RSAUtils.getBobModulus());
+        RSAUTF8.RSAResult recoveredResult = new RSAUTF8.RSAResult(
+                recoveredBlocks,
+                recoveredBlocks.size() * RSAUTF8.getEncryptionBlockSize(RSAUtils.getBobModulus())
+        );
+        String decrypted = rsa.decrypt(recoveredResult, false);
+        long decryptionTime = System.currentTimeMillis() - startDecrypt;
+        System.out.println("Entschlüsselungszeit: " + decryptionTime + " ms");
+
+        inputArea.setText(""); // Klartextfeld leeren
+        outputArea.setText(decrypted); // Zeige Entschlüsselung im gleichen Feld
+    }
+
+    private void signMessage() {
+        String message = inputArea.getText().trim();
+        if (message.isEmpty()) {
+            JOptionPane.showMessageDialog(null, "Bitte geben Sie eine Nachricht zum Signieren ein.");
+            return;
+        }
+        try {
+            BigInteger signature = RSAUtils.sign(message);
+            signatureArea.setText(signature.toString());
+            JOptionPane.showMessageDialog(null, "Nachricht erfolgreich signiert!");
+        } catch (NoSuchAlgorithmException e) {
+            JOptionPane.showMessageDialog(null, "Fehler beim Signieren: " + e.getMessage());
+        }
+    }
+
+    private void verifySignature() {
+        String message = inputArea.getText().trim();
+        String signatureText = signatureArea.getText().trim();
+        if (message.isEmpty() || signatureText.isEmpty()) {
+            JOptionPane.showMessageDialog(null, "Bitte Nachricht und Signatur eingeben!");
+            return;
+        }
+        try {
+            BigInteger signature = new BigInteger(signatureText);
+            boolean isValid = RSAUtils.verify(message, signature);
+            JOptionPane.showMessageDialog(null,
+                    "Verifikation " + (isValid ? "erfolgreich!" : "fehlgeschlagen!"));
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(null, "Fehler bei der Verifikation: " + e.getMessage());
         }
     }
 
