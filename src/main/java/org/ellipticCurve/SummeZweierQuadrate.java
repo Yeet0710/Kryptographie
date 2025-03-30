@@ -1,8 +1,7 @@
 package org.ellipticCurve;
 
-import org.Scrum1_16.SecPrimGenerator;
+import org.scrum1_16.SecPrimGenerator;
 import org.scrum1_3.schnelleExponentiation;
-import org.scrum1_4.erweiterterEuklid;
 
 import java.math.BigInteger;
 
