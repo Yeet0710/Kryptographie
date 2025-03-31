@@ -1,6 +1,7 @@
 package org.scrum1_6;
 
 import javax.swing.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
@@ -12,35 +13,31 @@ import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.security.NoSuchAlgorithmException;
 
-
-public class RSAGUI extends RSAUTF8 {
+public class BobEncryptionGUI extends RSAUTF8 {
 
     // GUI-Felder für Verschlüsselung
     private final JTextField ownPublicKeyField;
     private final JTextArea inputArea;
     private final JTextArea outputArea;
-    private final JTextArea publicKeyField;
+    private final JTextArea recipientKeyField;
     private final JTextArea signatureArea;
-
-    // Partner-Schlüssel
-    private BigInteger friendPubKey;
-    private BigInteger friendModulus;
 
     // Gemeinsame Button-Größe und Farbe
     private static final Dimension BUTTON_SIZE = new Dimension(150, 30);
     private static final Color BUTTON_COLOR = new Color(70, 130, 180);
+
     // CP437-Zeichensatz
     private static final Charset CP437 = Charset.forName("Cp437");
 
     /**
-     * Konstruktor: Ruft den Konstruktor der Basisklasse (RSAUTF8) mit einer Bitlänge von 2048 auf,
-     * erstellt die grafische Oberfläche und initialisiert alle Komponenten.
+     * Konstruktor: Erstellt die grafische Oberfläche für Bob, der für Alice verschlüsselt.
      */
-    public RSAGUI() {
+    public BobEncryptionGUI() {
+        //  initialisieren RSAUTF8
         super(2048);
-        System.out.println("DEBUG: RSAGUI (Alice) wird initialisiert.");
+        System.out.println("DEBUG: BobEncryptionGUI wird initialisiert.");
 
-        JFrame frame = new JFrame("Alice's Verschlüsselungs-Oberfläche");
+        JFrame frame = new JFrame("Bob's Verschlüsselungs-Oberfläche für Alice");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(1400, 900);
 
@@ -51,15 +48,16 @@ public class RSAGUI extends RSAUTF8 {
         gbc.weightx = 1.0;
         gbc.weighty = 0.0;
 
-        // ROW 0: Eigener öffentlicher Schlüssel (Alices Schlüssel)
+        // ROW 0: Eigener öffentlicher Schlüssel (Bobs Schlüssel)
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.weightx = 0.0;
-        mainPanel.add(new JLabel("Eigener öffentlicher Schlüssel (Alice, e, n):"), gbc);
+        mainPanel.add(new JLabel("Eigener öffentlicher Schlüssel (Bob, e, n):"), gbc);
 
         gbc.gridx = 1;
         gbc.weightx = 1.0;
-        ownPublicKeyField = new JTextField(RSAUtils2047.getAlicePublicKey() + ", " + RSAUtils2047.getAliceModulus(), 60);
+        // Bobs Schlüssel aus RSAUtils
+        ownPublicKeyField = new JTextField(RSAUtils.getBobPublicKey() + ", " + RSAUtils.getBobModulus(), 60);
         ownPublicKeyField.setEditable(false);
         mainPanel.add(ownPublicKeyField, gbc);
 
@@ -69,12 +67,24 @@ public class RSAGUI extends RSAUTF8 {
         setupButton(copyButton, BUTTON_SIZE, BUTTON_COLOR);
         copyButton.addActionListener(e -> {
             copyToClipboard(ownPublicKeyField.getText());
-            System.out.println("DEBUG: Eigener Schlüssel in die Zwischenablage kopiert.");
+            System.out.println("DEBUG: Bobs Schlüssel in die Zwischenablage kopiert.");
         });
         mainPanel.add(copyButton, gbc);
 
-        // ROW 1: Klartext
+        // ROW 1: Empfänger-Schlüssel (Alices öffentlicher Schlüssel)
         gbc.gridy = 1;
+        gbc.gridx = 0;
+        mainPanel.add(new JLabel("Empfänger-Schlüssel (Alice, e, n):"), gbc);
+
+        gbc.gridx = 1;
+        recipientKeyField = new JTextArea(2, 60);
+        recipientKeyField.setEditable(false);
+        recipientKeyField.setText(RSAUtils2047.getAlicePublicKey() + ", " + RSAUtils2047.getAliceModulus());
+        JScrollPane scrollRecipient = new JScrollPane(recipientKeyField);
+        mainPanel.add(scrollRecipient, gbc);
+
+        // ROW 2: Klartext
+        gbc.gridy = 2;
         gbc.gridx = 0;
         mainPanel.add(new JLabel("Klartext:"), gbc);
 
@@ -86,13 +96,13 @@ public class RSAGUI extends RSAUTF8 {
         mainPanel.add(scrollInput, gbc);
 
         gbc.gridx = 2;
-        JButton encryptButton = new JButton("Verschlüsseln (Alice→Bob)");
+        JButton encryptButton = new JButton("Verschlüsseln (Bob→Alice)");
         setupButton(encryptButton, BUTTON_SIZE, BUTTON_COLOR);
         encryptButton.addActionListener(e -> encryptMessage());
         mainPanel.add(encryptButton, gbc);
 
-        // ROW 2: Chiffrat
-        gbc.gridy = 2;
+        // ROW 3: Chiffrat
+        gbc.gridy = 3;
         gbc.gridx = 0;
         mainPanel.add(new JLabel("Verschlüsseltes Chiffrat (CP437):"), gbc);
 
@@ -108,24 +118,6 @@ public class RSAGUI extends RSAUTF8 {
         setupButton(saveButton, BUTTON_SIZE, BUTTON_COLOR);
         saveButton.addActionListener(e -> saveCiphertextToFile());
         mainPanel.add(saveButton, gbc);
-
-        // ROW 3: Partner-Schlüssel
-        gbc.gridy = 3;
-        gbc.gridx = 0;
-        mainPanel.add(new JLabel("Öffentlicher Schlüssel des Partners (e, n):"), gbc);
-
-        gbc.gridx = 1;
-        publicKeyField = new JTextArea(3, 60);
-        publicKeyField.setLineWrap(true);
-        publicKeyField.setWrapStyleWord(true);
-        JScrollPane scrollPartner = new JScrollPane(publicKeyField);
-        mainPanel.add(scrollPartner, gbc);
-
-        gbc.gridx = 2;
-        JButton setPublicKeyButton = new JButton("Schlüssel übernehmen");
-        setupButton(setPublicKeyButton, BUTTON_SIZE, BUTTON_COLOR);
-        setPublicKeyButton.addActionListener(e -> setFriendPubKey());
-        mainPanel.add(setPublicKeyButton, gbc);
 
         // ROW 4: Signatur
         gbc.gridy = 4;
@@ -145,20 +137,20 @@ public class RSAGUI extends RSAUTF8 {
         signButton.addActionListener(e -> signMessage());
         mainPanel.add(signButton, gbc);
 
-        // ROW 5: Öffne Bob's Decryption Interface
+        // ROW 5: Option zum Öffnen von Alices Decryption-Oberfläche
         gbc.gridy = 5;
         gbc.gridx = 2;
-        JButton openBobDecryptionButton = new JButton("Bob: Entschlüsseln");
-        setupButton(openBobDecryptionButton, BUTTON_SIZE, BUTTON_COLOR);
-        openBobDecryptionButton.addActionListener(e -> {
-            System.out.println("DEBUG: Öffne Bob's Entschlüsselungs-Oberfläche.");
-            new BobDecryptionGUI();
+        JButton openAliceDecryptionButton = new JButton("Alice: Entschlüsseln");
+        setupButton(openAliceDecryptionButton, BUTTON_SIZE, BUTTON_COLOR);
+        openAliceDecryptionButton.addActionListener(e -> {
+            System.out.println("DEBUG: Öffne Alices Entschlüsselungs-Oberfläche.");
+            new AliceDecryptionGUI();
         });
-        mainPanel.add(openBobDecryptionButton, gbc);
+        mainPanel.add(openAliceDecryptionButton, gbc);
 
         frame.add(mainPanel);
         frame.setVisible(true);
-        System.out.println("DEBUG: RSAGUI (Alice) initialisiert und sichtbar.");
+        System.out.println("DEBUG: BobEncryptionGUI initialisiert und sichtbar.");
     }
 
     // Hilfsmethode zur Button-Konfiguration
@@ -202,7 +194,8 @@ public class RSAGUI extends RSAUTF8 {
     }
 
     /**
-     * Verschlüsselt den eingegebenen Klartext mit Alices Nachricht an Bob.
+     * Verschlüsselt den eingegebenen Klartext. Hierbei wird Alices öffentlicher Schlüssel
+     * verwendet – d.h. Bob verschlüsselt für Alice.
      */
     private void encryptMessage() {
         String message = inputArea.getText().trim();
@@ -213,54 +206,24 @@ public class RSAGUI extends RSAUTF8 {
         }
         System.out.println("DEBUG: Verschlüsselung gestartet für Nachricht: " + message);
         long startEncrypt = System.currentTimeMillis();
-        // Bei "Alice → Bob" wird in RSAUTF8 beim Verschlüsseln true übergeben
-        RSAResult result = encrypt(message, true);
+        // Da Bob für Alice verschlüsseln soll, wird "false" übergeben,
+        // sodass in RSAUTF8 der Fall verwendet wird, bei dem Alices öffentliche Schlüssel genutzt wird.
+        RSAResult result = encrypt(message, false);
         long encryptionTime = System.currentTimeMillis() - startEncrypt;
         System.out.println("DEBUG: Verschlüsselungszeit: " + encryptionTime + " ms");
         System.out.println("DEBUG: Anzahl der verschlüsselten Blöcke: " + result.blocks.size());
         for (int i = 0; i < result.blocks.size(); i++) {
             System.out.println("DEBUG: Block " + i + ": " + result.blocks.get(i));
         }
-        // Für die Darstellung verwenden wir Bobs Modulus
-        BigInteger usedModulus = RSAUtils.getBobModulus();
+        // Für die Darstellung verwenden wir Alices Modulus
+        BigInteger usedModulus = RSAUtils2047.getAliceModulus();
         String cp437String = blocksToCp437String(result.blocks, usedModulus);
         outputArea.setText(cp437String);
         System.out.println("DEBUG: Verschlüsseltes Chiffrat (CP437): " + cp437String);
     }
 
     /**
-     * Übernimmt den in publicKeyField eingegebenen Partner-Schlüssel.
-     */
-    private void setFriendPubKey() {
-        String input = publicKeyField.getText().trim();
-        if (input.isEmpty() || input.equalsIgnoreCase("reset") || input.equalsIgnoreCase("null")) {
-            friendPubKey = null;
-            friendModulus = null;
-            setPublicKey(null, null);
-            JOptionPane.showMessageDialog(null, "Partner-Schlüssel zurückgesetzt. Es wird Bobs Schlüssel verwendet.");
-            System.out.println("DEBUG: Partner-Schlüssel zurückgesetzt.");
-            return;
-        }
-        try {
-            String[] parts = input.split(",");
-            if (parts.length == 2) {
-                friendPubKey = new BigInteger(parts[0].trim());
-                friendModulus = new BigInteger(parts[1].trim());
-                setPublicKey(friendPubKey, friendModulus);
-                JOptionPane.showMessageDialog(null, "Partner-Schlüssel erfolgreich übernommen!");
-                System.out.println("DEBUG: Partner-Schlüssel übernommen: " + friendPubKey + ", " + friendModulus);
-            } else {
-                JOptionPane.showMessageDialog(null, "Bitte geben Sie den öffentlichen Schlüssel und Modulus (Komma getrennt) ein.");
-                System.out.println("DEBUG: Falsches Format für Partner-Schlüssel.");
-            }
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(null, "Ungültiger öffentlicher Schlüssel!\n" + e.getMessage());
-            System.out.println("DEBUG: Fehler beim Setzen des Partner-Schlüssels: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Signiert den Klartext (mittels Alices privatem Schlüssel) und zeigt die Signatur an.
+     * Signiert den Klartext (mittels Bobs privatem Schlüssel) und zeigt die Signatur an.
      */
     private void signMessage() {
         String message = inputArea.getText().trim();
@@ -270,7 +233,8 @@ public class RSAGUI extends RSAUTF8 {
             return;
         }
         try {
-            BigInteger signature = RSAUtils2047.sign(message);
+
+            BigInteger signature = RSAUtils.sign(message);
             signatureArea.setText(signature.toString());
             JOptionPane.showMessageDialog(null, "Nachricht erfolgreich signiert!");
             System.out.println("DEBUG: Signatur erstellt: " + signature);
@@ -281,6 +245,6 @@ public class RSAGUI extends RSAUTF8 {
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(RSAGUI::new);
+        SwingUtilities.invokeLater(BobEncryptionGUI::new);
     }
 }
