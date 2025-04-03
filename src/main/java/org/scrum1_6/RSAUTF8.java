@@ -116,8 +116,13 @@ public class RSAUTF8 {
      */
     public static List<BigInteger> textToBigIntegerBlocks(final String text, final BigInteger modulus) {
         byte[] textBytes = text.getBytes(StandardCharsets.UTF_8);
+        System.out.println("-----------------------");
+        System.out.println("-----------------------");
+        System.out.println("Anzahl der Zeichen: " + text.length());
         System.out.println("DEBUG: Ursprünglicher Text: " + text);
         System.out.println("DEBUG: Länge des ursprünglichen Bytearrays: " + textBytes.length);
+        System.out.println("-----------------------");
+        System.out.println("-----------------------");
 
         int blockSize = getEncryptionBlockSize(modulus);
         System.out.println("DEBUG: Berechnete Verschlüsselungsblockgröße: " + blockSize + " Bytes");
@@ -186,8 +191,12 @@ public class RSAUTF8 {
     public static List<BigInteger> cp437StringToBlocks(final String text, final BigInteger modulus) {
         byte[] allBytes = text.getBytes(CP437);
         int modBlockSize = getDecryptionBlockSize(modulus);
+        System.out.println("-----------------------");
+        System.out.println("-----------------------");
         System.out.println("DEBUG: Gesamtlänge des eingelesenen CP437-Bytearrays: " + allBytes.length);
         System.out.println("DEBUG: Erwartete Blockgröße: " + modBlockSize + " Bytes");
+        System.out.println("-----------------------");
+        System.out.println("-----------------------");
 
         List<BigInteger> blocks = new ArrayList<>();
         for (int i = 0; i < allBytes.length; i += modBlockSize) {
@@ -270,11 +279,14 @@ public class RSAUTF8 {
         // Für 255/256 Byte-Blöcke muss ein ausreichend großer Modulus (mindestens 2048 Bit) verwendet werden.
         RSAUTF8 rsa = new RSAUTF8(2047);
 
-        String messageAliceToBob = "hallo";
+        String messageAliceToBob = "Möge die Macht mit dir sein!";
+
 
         System.out.println("Bobs Schlüssel: " + RSAUtils.getBobPublicKey());
         System.out.println("Bitlänge von Bobs Modulus: " + RSAUtils.getBobModulus().bitLength());
         System.out.println("Bitlänge von Alices Modulus: " + RSAUtils2047.getAliceModulus().bitLength());
+
+
 
         int encryptionBlockLength = getEncryptionBlockSize(RSAUtils.getBobModulus());
         int decryptionBlockLength = getDecryptionBlockSize(RSAUtils.getBobModulus());
