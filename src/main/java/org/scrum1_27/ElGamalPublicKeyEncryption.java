@@ -1,9 +1,11 @@
 package org.scrum1_27;
-import org.Scrum1_16.SecPrimGenerator;
+import org.scrum1_16.SecPrimGenerator;
 import org.scrum1_3.schnelleExponentiation;
 
 import java.math.BigInteger;
 import java.security.SecureRandom;
+
+import static org.scrum1_8.EllipticCurveOrderCalculator.computeGroupOrder;
 
 public class ElGamalPublicKeyEncryption {
     private static final SecureRandom random = new SecureRandom();
@@ -86,6 +88,9 @@ public class ElGamalPublicKeyEncryption {
 
         BigInteger p = SecPrimGenerator.generateSafePrime(bitLength, mrIterations); // Generiert sichere Primzahl
         BigInteger g = SecPrimGenerator.findPrimitiveRoot(p); // Berechnet Primitivwurzel von p
+
+        BigInteger order = computeGroupOrder(p);
+        System.out.println("Gruppenordnung N: " + order);
 
         BigInteger[] keys = generateKeys(p, g);
         BigInteger x = keys[0]; // Privater Schlüssel

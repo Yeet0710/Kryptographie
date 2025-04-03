@@ -1,4 +1,4 @@
-package org.Scrum1_16;
+package org.scrum1_16;
 import org.scrum1_1.PrimGenerator;
 import org.scrum1_2.PrimTester;
 

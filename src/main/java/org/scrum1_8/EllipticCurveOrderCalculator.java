@@ -2,6 +2,7 @@ package org.scrum1_8;
 import org.scrum1_2.PrimTester;
 import java.math.BigInteger;
 import java.security.SecureRandom;
+import org.scrum1_16.SecPrimGenerator;
 
 public class EllipticCurveOrderCalculator {
 
@@ -13,7 +14,7 @@ public class EllipticCurveOrderCalculator {
      * @return p = p + 1 - h
      */
     public static BigInteger computeGroupOrder(BigInteger p) {
-        if (!PrimTester.istPrimzahl(p, 20)) {
+        if (!PrimTester.istPrimzahl(p, 200)) {
             throw new IllegalStateException("Eingegebene Zahl(" + p + ") ist keine Primzahl");
         }
         int[] xy = findXYRepresentation(p);
@@ -32,7 +33,9 @@ public class EllipticCurveOrderCalculator {
             throw new IllegalStateException("Unerwartete Werte für x und y");
         }
 
-        return p.add(BigInteger.ONE).subtract(BigInteger.valueOf(h));
+        p.add(BigInteger.ONE).subtract(BigInteger.valueOf(h));
+        System.out.println("q = " + p.divide(BigInteger.valueOf(8)) );
+        return p;
     }
 
     /**
@@ -41,6 +44,16 @@ public class EllipticCurveOrderCalculator {
      * @return Die generierten x und y
      */
     private static int[] findXYRepresentation(BigInteger p) {
+
+        //if (!p.mod(BigInteger.valueOf(4)).equals(BigInteger.ONE)) {
+        //    throw new IllegalStateException("p kann nicht als Summe zweier Quadratzahlen dargestellt werden.");
+        //}
+
+        do {
+            p = BigInteger.probablePrime(256, secureRandom);
+        } while (!p.mod(BigInteger.valueOf(4)).equals(BigInteger.ONE));
+
+
         int x, y;
         while (true) {
             x = new BigInteger(p.bitLength(), secureRandom).mod(p).intValue(); // Generiert zufälliges x (mod p)
@@ -53,7 +66,7 @@ public class EllipticCurveOrderCalculator {
     }
 
     public static void main(String[] args) {
-        BigInteger p = new BigInteger("23"); // Beispielprimzahl
+        BigInteger p = SecPrimGenerator.generateSafePrime(BigInteger.valueOf(256), 20); // Beispielprimzahl
 
         BigInteger order = computeGroupOrder(p);
         System.out.println("Gruppenordnung N: " + order);
