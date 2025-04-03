@@ -4,21 +4,24 @@ import java.io.*;
 import java.math.BigInteger;
 import java.util.List;
 
+import org.scrum1_27.ElGamalPublicKeyEncryption;
 import org.scrum1_6.RSAUTF8;
 import org.scrum1_3.schnelleExponentiation;
 import org.scrum1_10.DateitypCip; // Importiert Datei-IO für Ciphertext
 
 public class ECCUtils {
-    private static final String eEcc_Key = "ecc_private.txt";
-    private static final String nEcc_Key = "ecc_public.txt";
-    private static final String dEcc_Key = "ecc_modulus.txt";
+    private static final String pEcc_Key = "ecc_prime.txt";
+    private static final String gEcc_Key = "ecc_primeroot.txt";
+    private static final String yEcc_Key = "ecc_publicKey.txt";
+    private static final String xEcc_Key = "ecc_privateKey.txt";
 
-    private static BigInteger eEcc, nEcc, dEcc;
+    private static BigInteger pEcc, gEcc, yEcc, xEcc;
 
     public static void loadKeysFromFiles() throws IOException {
-        eEcc = loadKey(eEcc_Key);
-        nEcc = loadKey(nEcc_Key);
-        dEcc = loadKey(dEcc_Key);
+        pEcc = loadKey(pEcc_Key);
+        gEcc = loadKey(gEcc_Key);
+        yEcc = loadKey(yEcc_Key);
+        xEcc = loadKey(xEcc_Key);
     }
 
     private static BigInteger loadKey(String filename) throws IOException {
@@ -27,14 +30,17 @@ public class ECCUtils {
         }
     }
 
-    public static BigInteger getECCPublicKey() {
-        return eEcc;
+    public static BigInteger getECCPrime() {
+        return pEcc;
     }
-    public static BigInteger getECCModulus() {
-        return nEcc;
+    public static BigInteger getECCPrimeRoot() {
+        return gEcc;
+    }
+    public static BigInteger getECCPublicKey() {
+        return yEcc;
     }
     public static BigInteger getECCPrivateKey() {
-        return dEcc;
+        return xEcc;
     }
 
     public static void saveCiphertextToFile(String ciphertext, String filename) {
@@ -49,25 +55,14 @@ public class ECCUtils {
         return schnelleExponentiation.schnelleExponentiation(publicKey, privateKey, modulus);
     }
 
-    private static String encrypt(String message, BigInteger sharedKey, BigInteger modulus) {
-        List<BigInteger> blocks = RSAUTF8.textToBigIntegerBlocks(message, modulus);
-        List<BigInteger> encryptedBlocks = modEncryptBlocks(blocks, sharedKey, modulus);
-        return RSAUTF8.blocksToCp437String(encryptedBlocks, modulus);
+    private static BigInteger[] encrypt(String message, BigInteger p, BigInteger g, BigInteger y) {
+        BigInteger messageAsNumber = new BigInteger(message.getBytes());
+        return ElGamalPublicKeyEncryption.encrypt(messageAsNumber, p, g, y);
     }
 
-    private static String decrypt(String cipherText, BigInteger sharedKey, BigInteger modulus) {
-        List<BigInteger> blocks = RSAUTF8.cp437StringToBlocks(cipherText, modulus);
-        List<BigInteger> decryptedBlocks = modDecryptBlocks(blocks, sharedKey, modulus);
-        return RSAUTF8.blocksToCp437String(decryptedBlocks, modulus);
-    }
-
-    private static List<BigInteger> modEncryptBlocks(List<BigInteger> blocks, BigInteger key, BigInteger modulus) {
-        return blocks.stream().map(block -> block.multiply(key).mod(modulus)).toList();
-    }
-
-    private static List<BigInteger> modDecryptBlocks(List<BigInteger> blocks, BigInteger key, BigInteger modulus) {
-        BigInteger keyInverse = key.modInverse(modulus);
-        return blocks.stream().map(block -> block.multiply(keyInverse).mod(modulus)).toList();
+    private static String decrypt(BigInteger a, BigInteger b, BigInteger p, BigInteger x) {
+        BigInteger decryptedNumber = ElGamalPublicKeyEncryption.decrypt(a, b, p, x);
+        return new String(decryptedNumber.toByteArray());
     }
 
     public static void main(String[] args) {
@@ -77,9 +72,9 @@ public class ECCUtils {
             ECCUtils.loadKeysFromFiles();
 
             // Schlüssel abrufen
-            BigInteger privateKey = ECCUtils.getECCPrivateKey();
-            BigInteger publicKey = ECCUtils.getECCPublicKey();
-            BigInteger modulus = ECCUtils.getECCModulus();
+            BigInteger privateKey = ECCUtils.getECCPrime();
+            BigInteger publicKey = ECCUtils.getECCPrimeRoot();
+            BigInteger modulus = ECCUtils.getECCPublicKey();
 
             System.out.println("Private Key: " + privateKey);
             System.out.println("Public Key: " + publicKey);
