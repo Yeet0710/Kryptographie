@@ -1,5 +1,8 @@
 package org.ellipticCurveFinal;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 import java.math.BigInteger;
 import java.security.SecureRandom;
 import java.util.Scanner;
@@ -10,7 +13,7 @@ public class ECCConsoleApp {
         try {
             // 1. Erzeuge eine sichere elliptische Kurve gemäß der Durchführungsverordnung.
             // Hierbei wird p generiert, sodass p ≡ 5 mod 8 gilt, und q = N/8 (prim) berechnet.
-            int bitLength = 16; // Bitlänge von p (anpassbar)
+            int bitLength = 16; // Bitlänge von p (anpassbar, für Testzwecke)
             int millerRabinIterations = 20;
             SecureFiniteFieldEllipticCurve secureCurve = new SecureFiniteFieldEllipticCurve(bitLength, millerRabinIterations);
             FiniteFieldEllipticCurve curve = secureCurve.getCurve();
@@ -20,7 +23,6 @@ public class ECCConsoleApp {
             // 2. Wähle einen Basispunkt G aus der Kurve (ersten gefundenen gültigen Punkt, nicht unendlich).
             ECPoint G = curve.findGenerator();
             System.out.println("Basispunkt G: " + G);
-
 
             // 3. Schlüsselgenerierung:
             // Erzeuge einen privaten Schlüssel d (zufällig in [1, q-1]) und berechne den öffentlichen Schlüssel Q = d * G.
@@ -34,14 +36,22 @@ public class ECCConsoleApp {
             System.out.println("Private Key d: " + d);
             System.out.println("Public Key Q: " + Q);
 
-            // 4. Verschlüsselung:
-            // Lies vom Benutzer eine Nachricht ein.
+            // 4. Einlesen der Nachricht: Benutzer kann wählen, ob der Text aus einer Datei eingelesen werden soll
             Scanner scanner = new Scanner(System.in);
-            System.out.println("Gib die Nachricht zum Verschlüsseln ein:");
-            String plaintext = scanner.nextLine();
+            String plaintext = "";
+            System.out.println("Soll der zu verschlüsselnde Text aus einer Datei eingelesen werden? (j/n)");
+            String choice = scanner.nextLine();
+            if (choice.trim().equalsIgnoreCase("j")) {
+                System.out.println("Gib den Dateipfad ein:");
+                String filePath = scanner.nextLine();
+                plaintext = readFileAsString(filePath);
+            } else {
+                System.out.println("Gib die Nachricht zum Verschlüsseln ein:");
+                plaintext = scanner.nextLine();
+            }
             byte[] plaintextBytes = plaintext.getBytes("UTF-8");
 
-            // Erzeuge einen ephemeral Schlüssel k (zufällig in [1, q-1]).
+            // 5. Erzeuge einen ephemeral Schlüssel k (zufällig in [1, q-1]).
             BigInteger k;
             do {
                 k = new BigInteger(q.bitLength(), random);
@@ -57,7 +67,7 @@ public class ECCConsoleApp {
             System.out.println("Ciphertext (hex): " + bytesToHex(ciphertextBytes));
             System.out.println("Ephemeral public value R: " + R);
 
-            // 5. Entschlüsselung:
+            // 6. Entschlüsselung:
             // Empfänger berechnet S' = d * R (sollte identisch mit S = k * Q sein).
             ECPoint sharedSecretDec = R.multiply(d, curve);
             BigInteger sharedSecretXDec = sharedSecretDec.getX();
@@ -69,6 +79,20 @@ public class ECCConsoleApp {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * Liest den Inhalt einer Datei (inklusive Zeilenumbrüche) und gibt ihn als String zurück.
+     */
+    private static String readFileAsString(String filePath) throws IOException {
+        StringBuilder contentBuilder = new StringBuilder();
+        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+            String sCurrentLine;
+            while ((sCurrentLine = br.readLine()) != null) {
+                contentBuilder.append(sCurrentLine).append(System.lineSeparator());
+            }
+        }
+        return contentBuilder.toString();
     }
 
     /**
