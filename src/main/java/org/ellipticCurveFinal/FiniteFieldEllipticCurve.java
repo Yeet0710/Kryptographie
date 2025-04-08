@@ -96,7 +96,6 @@ public class FiniteFieldEllipticCurve {
             } else {
                 continue;
             }
-            System.out.println("Schritt d");
             // (d) Kandidatenpunkt g = (x,y) bilden und normalisieren
             ECPoint candidate = new FiniteFieldECPoint(x, y).normalize(this);
             if (!this.isValidPoint(candidate)) continue;
@@ -105,7 +104,6 @@ public class FiniteFieldEllipticCurve {
             if (candidate.multiply(BigInteger.valueOf(2), this) instanceof InfinitePoint ||
                     candidate.multiply(BigInteger.valueOf(4), this) instanceof InfinitePoint ||
                     candidate.multiply(BigInteger.valueOf(8), this) instanceof InfinitePoint) {
-                System.out.println("Zu kleine Ordnung");
                 continue; // Kandidat mit zu kleiner Ordnung verwerfen
             }
             System.out.println("Generator gefunden: " + candidate);
