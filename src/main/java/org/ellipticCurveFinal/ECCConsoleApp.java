@@ -51,6 +51,7 @@ public class ECCConsoleApp {
             }
             byte[] plaintextBytes = plaintext.getBytes("UTF-8");
 
+            Long startTimeV = System.currentTimeMillis();
             // 5. Erzeuge einen ephemeral Schlüssel k (zufällig in [1, q-1]).
             BigInteger k;
             do {
@@ -66,15 +67,20 @@ public class ECCConsoleApp {
             byte[] ciphertextBytes = xorBytes(plaintextBytes, keyBytes);
             System.out.println("Ciphertext (hex): " + bytesToHex(ciphertextBytes));
             System.out.println("Ephemeral public value R: " + R);
+            Long endTimeV = System.currentTimeMillis();
 
             // 6. Entschlüsselung:
             // Empfänger berechnet S' = d * R (sollte identisch mit S = k * Q sein).
+            Long startTimeE = System.currentTimeMillis();
             ECPoint sharedSecretDec = R.multiply(d, curve);
             BigInteger sharedSecretXDec = sharedSecretDec.getX();
             byte[] keyBytesDec = sharedSecretXDec.toByteArray();
             byte[] decryptedBytes = xorBytes(ciphertextBytes, keyBytesDec);
             String decryptedMessage = new String(decryptedBytes, "UTF-8");
             System.out.println("Decrypted message: " + decryptedMessage);
+            Long endTimeE = System.currentTimeMillis();
+            System.out.println("Verschlüsselungszeit: " + (endTimeV - startTimeV) + " ms");
+            System.out.println("Entschlüsselungszeit: " + (endTimeE - startTimeE) + " ms");
 
         } catch (Exception e) {
             e.printStackTrace();
