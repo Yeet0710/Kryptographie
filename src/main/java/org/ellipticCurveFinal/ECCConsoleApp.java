@@ -13,7 +13,7 @@ public class ECCConsoleApp {
         try {
             // 1. Erzeuge eine sichere elliptische Kurve gemäß der Durchführungsverordnung.
             // Hierbei wird p generiert, sodass p ≡ 5 mod 8 gilt, und q = N/8 (prim) berechnet.
-            int bitLength = 16; // Bitlänge von p (anpassbar, für Testzwecke)
+            int bitLength = 256; // Bitlänge von p (anpassbar, für Testzwecke)
             int millerRabinIterations = 20;
             SecureFiniteFieldEllipticCurve secureCurve = new SecureFiniteFieldEllipticCurve(bitLength, millerRabinIterations);
             FiniteFieldEllipticCurve curve = secureCurve.getCurve();
@@ -21,7 +21,7 @@ public class ECCConsoleApp {
             System.out.println("Berechnete Untergruppenordnung q = " + secureCurve.getQ());
 
             // 2. Wähle einen Basispunkt G aus der Kurve (ersten gefundenen gültigen Punkt, nicht unendlich).
-            ECPoint G = curve.findGenerator();
+            ECPoint G = curve.findGenerator(secureCurve.getQ());
             System.out.println("Basispunkt G: " + G);
 
             // 3. Schlüsselgenerierung:

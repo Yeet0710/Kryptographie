@@ -56,60 +56,48 @@ public class FiniteFieldEllipticCurve {
         return left.equals(right);
     }
 
-    public ECPoint findGenerator() {
+    /**
+     * Findet einen Generator per Kofaktor-Methode
+     * -------------------------------------------
+     * Wählt einen zufälligen Kurvenpunkt aus,
+     * multipliziert ihn einmal mit dem festen Faktor (8)
+     * und prüft nur, ob das Ergebnis nicht der Punkt im Unendlichen ist.
+     * Damit entfällt das bisherige aufwändige Testen mehrerer Vielfacher.
+     *
+     * @param q Die Ordnung der gesuchten Untergruppe.
+     * @return Ein Generator der Untergruppe ermittelt durch einmalige Kofaktor-Multiplikation.
+     */
+    public ECPoint findGenerator(BigInteger q) {
         SecureRandom random = new SecureRandom();
-        long counter = 0;
+        BigInteger legExp = p.subtract(BigInteger.ONE).divide(BigInteger.valueOf(2));
+        BigInteger eight = BigInteger.valueOf(8);
+
         while (true) {
-            System.out.println("Iteration: " + counter);
-            counter++;
-            // (a) Zufällig x ∈ Z_p* wählen
+            // Zufälliges x in F_p
             BigInteger x = new BigInteger(p.bitLength(), random).mod(p);
-            if(x.equals(BigInteger.ZERO)) continue;
-            // (b) r = x^3 - x mod p berechnen
-            BigInteger r = x.pow(3).subtract(x).mod(p);
-            // Prüfe: r^((p-1)/2) ≡ 1 mod p mit schnellerExponentiation:
-            BigInteger exp = p.subtract(BigInteger.ONE).divide(BigInteger.valueOf(2));
-            if (!schnelleExponentiation.schnelleExponentiation(r, exp, p).equals(BigInteger.ONE)) {
-                continue;
+            // r = x^3 - x mod p
+            BigInteger r = x.modPow(BigInteger.valueOf(3), p).subtract(x).mod(p);
+            // Legendre-Symbol test: r^((p-1)/2) mod p == 1
+            if (!r.modPow(legExp, p).equals(BigInteger.ONE)) continue;
+            // Quadratwurzel für p ≡ 5 mod 8: y = r^((p+3)/8) mod p
+            BigInteger exp = p.add(BigInteger.valueOf(3)).divide(BigInteger.valueOf(8));
+            BigInteger y = r.modPow(exp, p);
+            // Falls nötig, nochmals prüfen
+            if (!y.modPow(BigInteger.valueOf(2), p).equals(r)) continue;
+
+            ECPoint g0 = new FiniteFieldECPoint(x, y).normalize(this);
+            if (!isValidPoint(g0)) continue;
+
+            // Kofaktor-Multiplikation
+            ECPoint g = g0.multiply(eight, this);
+            // Rückgabe, sobald g != O
+            if (!(g instanceof InfinitePoint)) {
+                return g;
             }
-            // (c) Berechne r^((p-1)/4) mod p
-            BigInteger exp2 = p.subtract(BigInteger.ONE).divide(BigInteger.valueOf(4));
-            BigInteger rExp = schnelleExponentiation.schnelleExponentiation(r, exp2, p);
-            BigInteger y;
-            // Berechne den modularen Inversen von 8 mod p mithilfe des erweiterten Euklidischen Algorithmus:
-            BigInteger eight = BigInteger.valueOf(8);
-            BigInteger[] ee = erweiterterEuklid.erweiterterEuklid(eight, p);
-            BigInteger inv8 = ee[1].mod(p); // x-Koordinate als Inverser
-            // Unterscheide zwei Fälle:
-            if (rExp.equals(BigInteger.ONE)) {
-                // Falls r^((p-1)/4) ≡ 1: y = [r*(p+3)/8] mod p
-                y = r.multiply(p.add(BigInteger.valueOf(3))).mod(p);
-                y = y.multiply(inv8).mod(p);
-            } else if (rExp.equals(p.subtract(BigInteger.ONE))) { // d.h. r^((p-1)/4) ≡ -1 mod p
-                // Falls r^((p-1)/4) ≡ -1: y = [((p+1)/2) * (4*r) * (p+3)/8] mod p.
-                BigInteger part1 = p.add(BigInteger.ONE).divide(BigInteger.valueOf(2));
-                BigInteger part2 = BigInteger.valueOf(4).multiply(r).mod(p);
-                BigInteger part3 = p.add(BigInteger.valueOf(3)).mod(p);
-                y = part1.multiply(part2).mod(p);
-                y = y.multiply(part3).mod(p);
-                y = y.multiply(inv8).mod(p);
-            } else {
-                continue;
-            }
-            // (d) Kandidatenpunkt g = (x,y) bilden und normalisieren
-            ECPoint candidate = new FiniteFieldECPoint(x, y).normalize(this);
-            if (!this.isValidPoint(candidate)) continue;
-            // (e) Überprüfe, ob candidate eine kleine Ordnung hat:
-            System.out.println(candidate.multiply(BigInteger.valueOf(2), this));
-            if (candidate.multiply(BigInteger.valueOf(2), this) instanceof InfinitePoint ||
-                    candidate.multiply(BigInteger.valueOf(4), this) instanceof InfinitePoint ||
-                    candidate.multiply(BigInteger.valueOf(8), this) instanceof InfinitePoint) {
-                continue; // Kandidat mit zu kleiner Ordnung verwerfen
-            }
-            System.out.println("Generator gefunden: " + candidate);
-            return candidate;
         }
     }
+
+
 
 
 
