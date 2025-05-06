@@ -12,7 +12,7 @@ import java.util.List;
  * Benchmark für ECC mit Block-Chiffrierung.
  */
 public class ECCBenchmark {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         final int iterations = 100;
         String testText;
 

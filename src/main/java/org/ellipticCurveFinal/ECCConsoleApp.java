@@ -15,7 +15,7 @@ public class ECCConsoleApp {
     public static void main(String[] args) {
         try {
             // 1. Kurve und Schlüssel generieren
-            int bitLength = 256;
+            int bitLength = 1024;
             int millerRabinIterations = 20;
             SecureFiniteFieldEllipticCurve secureCurve =
                     new SecureFiniteFieldEllipticCurve(bitLength, millerRabinIterations);

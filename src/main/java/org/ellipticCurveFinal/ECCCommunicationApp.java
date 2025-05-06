@@ -24,38 +24,65 @@ public class ECCCommunicationApp {
 
     public static void main(String[] args) {
         try {
-            // --- Eigene Konfiguration laden/erzeugen ---
             Properties props = new Properties();
+            SecureRandom rnd = new SecureRandom();
+
+            // --- Domain-Parameter und Keys laden oder erzeugen ---
             if (Files.notExists(CONFIG) || Files.size(CONFIG) == 0) {
+                // Komplett neu erzeugen
                 Files.createDirectories(CONFIG.getParent() == null ? Paths.get(".") : CONFIG.getParent());
-                SecureRandom rnd = new SecureRandom();
-                SecureFiniteFieldEllipticCurve sCurve = new SecureFiniteFieldEllipticCurve(256, 20);
+                SecureFiniteFieldEllipticCurve sCurve = new SecureFiniteFieldEllipticCurve(1024, 20);
                 FiniteFieldEllipticCurve curve = sCurve.getCurve();
                 BigInteger p = curve.getP();
                 BigInteger q = sCurve.getQ();
                 BigInteger a = FiniteFieldEllipticCurve.SumOfSquares.represent(p).x;
                 ECPoint G = curve.findGenerator(q);
-                BigInteger Gx = G.getX(), Gy = G.getY();
-                BigInteger d;
-                do { d = new BigInteger(q.bitLength(), rnd); }
-                while (d.compareTo(BigInteger.ONE) < 0 || d.compareTo(q) >= 0);
+
+                // Schlüssel erzeugen
+                BigInteger d = generatePrivateKey(q, rnd);
                 ECPoint Q = G.multiply(d, curve);
-                BigInteger Qx = Q.getX(), Qy = Q.getY();
+
+                // Speichern
                 props.setProperty("p", p.toString());
                 props.setProperty("a", a.toString());
-                props.setProperty("Gx", Gx.toString());
-                props.setProperty("Gy", Gy.toString());
+                props.setProperty("Gx", G.getX().toString());
+                props.setProperty("Gy", G.getY().toString());
                 props.setProperty("d", d.toString());
-                props.setProperty("Qx", Qx.toString());
-                props.setProperty("Qy", Qy.toString());
+                props.setProperty("Qx", Q.getX().toString());
+                props.setProperty("Qy", Q.getY().toString());
                 try (var os = Files.newOutputStream(CONFIG, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
                     props.store(os, null);
                 }
                 System.out.println("Konfigurationsdatei erzeugt: " + CONFIG.toAbsolutePath());
             }
+            // Aus Datei laden
             try (var is = Files.newInputStream(CONFIG)) {
                 props.load(is);
             }
+            // Wenn privater Schlüssel fehlt, nur d und Q generieren
+            if (!props.containsKey("d") || !props.containsKey("Qx") || !props.containsKey("Qy")) {
+                BigInteger p = new BigInteger(props.getProperty("p"));
+                BigInteger a = new BigInteger(props.getProperty("a"));
+                BigInteger Gx = new BigInteger(props.getProperty("Gx"));
+                BigInteger Gy = new BigInteger(props.getProperty("Gy"));
+                FiniteFieldEllipticCurve curve = new FiniteFieldEllipticCurve(p);
+                BigInteger N = p.add(BigInteger.ONE).subtract(a.shiftLeft(1));
+                BigInteger q = N.divide(BigInteger.valueOf(8));
+                curve.setQ(q);
+                ECPoint G = new FiniteFieldECPoint(Gx, Gy).normalize(curve);
+
+                BigInteger d = generatePrivateKey(q, rnd);
+                ECPoint Q = G.multiply(d, curve);
+                props.setProperty("d", d.toString());
+                props.setProperty("Qx", Q.getX().toString());
+                props.setProperty("Qy", Q.getY().toString());
+                try (var os = Files.newOutputStream(CONFIG, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
+                    props.store(os, null);
+                }
+                System.out.println("Privater Schlüssel erzeugt und gespeichert.");
+            }
+
+            // Parameter aus Properties
             BigInteger p = new BigInteger(props.getProperty("p"));
             BigInteger a = new BigInteger(props.getProperty("a"));
             BigInteger Gx = new BigInteger(props.getProperty("Gx"));
@@ -82,25 +109,13 @@ public class ECCCommunicationApp {
                 partnerQ = new FiniteFieldECPoint(pqx, pqy).normalize(curve);
                 System.out.println("Partner-Konfiguration geladen.");
             } else {
-                Scanner in = new Scanner(System.in);
-                System.out.println("Partner-Konfig nicht gefunden. Qx der Partnergruppe:");
-                BigInteger pqx = new BigInteger(in.nextLine().trim());
-                System.out.println("Qy der Partnergruppe:");
-                BigInteger pqy = new BigInteger(in.nextLine().trim());
-                partnerProps.setProperty("Qx", pqx.toString());
-                partnerProps.setProperty("Qy", pqy.toString());
-                try (var pos = Files.newOutputStream(PARTNER_CONFIG, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
-                    partnerProps.store(pos, null);
-                }
-                partnerQ = new FiniteFieldECPoint(pqx, pqy).normalize(curve);
-                System.out.println("Partner-Konfiguration gespeichert.");
+                partnerQ = askAndSavePartnerKey(curve);
             }
-
+            System.out.println("Partner Q: " + partnerQ);
             // --- Interaktion mit Block-Chiffrierung ---
             Scanner sc = new Scanner(System.in);
             System.out.println("[e] Verschlüsseln an Partner | [d] Entschlüsseln von Partner");
             String mode = sc.nextLine().trim().toLowerCase();
-
             if ("e".equals(mode)) {
                 System.out.println("Klartext:");
                 String text = sc.nextLine();
@@ -110,12 +125,12 @@ public class ECCCommunicationApp {
                 System.out.println("R.x: " + res.Rx);
                 System.out.println("R.y: " + res.Ry);
             } else if ("d".equals(mode)) {
-                System.out.println("Ciphertext:");
-                String ct = sc.nextLine();
                 System.out.println("R.x:");
                 BigInteger rx = new BigInteger(sc.nextLine().trim());
                 System.out.println("R.y:");
                 BigInteger ry = new BigInteger(sc.nextLine().trim());
+                System.out.println("Ciphertext (Base64):");
+                String ct = sc.nextLine().trim();
                 String plain = ECCBlockCipher.decrypt(ct, rx, ry, d, p, curve);
                 System.out.println("--- Entschlüsselt von Partner ---");
                 System.out.println(plain);
@@ -125,5 +140,28 @@ public class ECCCommunicationApp {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private static BigInteger generatePrivateKey(BigInteger q, SecureRandom rnd) {
+        BigInteger d;
+        do { d = new BigInteger(q.bitLength(), rnd); }
+        while (d.compareTo(BigInteger.ONE) < 0 || d.compareTo(q) >= 0);
+        return d;
+    }
+
+    private static ECPoint askAndSavePartnerKey(FiniteFieldEllipticCurve curve) throws IOException {
+        Scanner in = new Scanner(System.in);
+        System.out.println("Partner-Konfig nicht gefunden. Qx der Partnergruppe:");
+        BigInteger pqx = new BigInteger(in.nextLine().trim());
+        System.out.println("Qy der Partnergruppe:");
+        BigInteger pqy = new BigInteger(in.nextLine().trim());
+        Properties partnerProps = new Properties();
+        partnerProps.setProperty("Qx", pqx.toString());
+        partnerProps.setProperty("Qy", pqy.toString());
+        try (var pos = Files.newOutputStream(PARTNER_CONFIG, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
+            partnerProps.store(pos, null);
+        }
+        System.out.println("Partner-Konfiguration gespeichert.");
+        return new FiniteFieldECPoint(pqx, pqy).normalize(curve);
     }
 }
