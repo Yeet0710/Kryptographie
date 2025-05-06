@@ -8,14 +8,14 @@ import java.security.SecureRandom;
 import java.util.Scanner;
 
 /**
- * ECCConsoleApp: Demonstriert Verschlüsselung und Entschlüsselung mit ECCBlockCipher.
+ * ECCConsoleApp: Demonstriert Verschlüsselung und Entschlüsselung.
  */
 public class ECCConsoleApp {
 
     public static void main(String[] args) {
         try {
             // 1. Kurve und Schlüssel generieren
-            int bitLength = 1024;
+            int bitLength = 256;
             int millerRabinIterations = 20;
             SecureFiniteFieldEllipticCurve secureCurve =
                     new SecureFiniteFieldEllipticCurve(bitLength, millerRabinIterations);
@@ -52,9 +52,12 @@ public class ECCConsoleApp {
             );
             long endEnc = System.currentTimeMillis();
             System.out.println("--- Verschlüsselt ---");
-            System.out.println("Ciphertext (CP437): " + encrypted.cipherText);
-            System.out.println("R.x: " + encrypted.Rx);
-            System.out.println("R.y: " + encrypted.Ry);
+            System.out.println("Ciphertext: " + encrypted.cipherText);
+            System.out.println("Q.x: " + Q.getX());
+            System.out.println("Q.y: " + Q.getY());
+            System.out.println("p: " + p);
+            System.out.println("G.x: " + G.getX());
+            System.out.println("G.Y: " + G.getY());
             System.out.println("Verschlüsselungszeit: " + (endEnc - startEnc) + " ms");
 
             // 4. Entschlüsselung
