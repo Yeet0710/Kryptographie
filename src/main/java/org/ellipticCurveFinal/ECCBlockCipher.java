@@ -11,8 +11,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Utility-Klasse für ECC-basierte Block-Chiffrierung (ElGamal-Stil + Block-Verarbeitung).
- * Enthält alle benötigten Methoden zum Padding, Block-Splitting und CP437-Encoding.
+ * ECCBlockCipher gemäß DV: verarbeitet Block-Tupel (m1, m2) als Einheit.
  */
 public class ECCBlockCipher {
     private static final Charset CP437 = Charset.forName("Cp437");
@@ -22,15 +21,11 @@ public class ECCBlockCipher {
         public final BigInteger Ry;
         public final String cipherText;
         public CipherResult(BigInteger rx, BigInteger ry, String ct) {
-            this.Rx = rx;
-            this.Ry = ry;
-            this.cipherText = ct;
+            this.Rx = rx; this.Ry = ry; this.cipherText = ct;
         }
     }
 
-    /**
-     * Verschlüsselt einen UTF-8-String mit ECC-Block-XOR.
-     */
+    /** Verschlüsselt mit Block-Tupel-Verfahren. */
     public static CipherResult encrypt(
             String plaintext,
             ECPoint G,
@@ -38,25 +33,43 @@ public class ECCBlockCipher {
             BigInteger p,
             BigInteger q,
             FiniteFieldEllipticCurve curve) {
-        List<BigInteger> blocks = textToBigIntegerBlocks(plaintext, p);
+        int blockSize = getEncryptionBlockSize(p);
+        // 1) Byte-Padding und Tuple-Erstellung
+        byte[] textBytes = plaintext.getBytes(StandardCharsets.UTF_8);
+        int missing = textBytes.length % blockSize;
+        if (missing != 0) {
+            textBytes = Arrays.copyOf(textBytes, textBytes.length + (blockSize - missing));
+        }
+        List<byte[]> tuples = new ArrayList<>();
+        for (int i = 0; i < textBytes.length; i += 2*blockSize) {
+            byte[] t = new byte[2*blockSize];
+            int len = Math.min(2*blockSize, textBytes.length - i);
+            System.arraycopy(textBytes, i, t, 0, len);
+            tuples.add(t);
+        }
+        // 2) ECC-Ephemeral
         SecureRandom rnd = new SecureRandom();
         BigInteger k;
         do { k = new BigInteger(q.bitLength(), rnd); }
         while (k.compareTo(BigInteger.ONE) < 0 || k.compareTo(q) >= 0);
         ECPoint R = G.multiply(k, curve);
         ECPoint shared = recipientQ.multiply(k, curve);
-        BigInteger key = shared.getX();
+        byte[] key = shared.getX().toByteArray();
+        // 3) XOR auf Tuple-Ebene
         List<BigInteger> cipherBlocks = new ArrayList<>();
-        for (BigInteger m : blocks) {
-            cipherBlocks.add(m.xor(key));
+        for (byte[] t : tuples) {
+            byte[] ct = new byte[t.length];
+            for (int j=0; j<t.length; j++) ct[j] = (byte)(t[j] ^ key[j % key.length]);
+            cipherBlocks.add(new BigInteger(1, ct));
         }
-        String ct = blocksToCp437String(cipherBlocks, p);
-        return new CipherResult(R.getX(), R.getY(), ct);
+        // 4) CP437-Kodierung
+        int cpBlockSize = getDecryptionBlockSize(p) * 2;
+        byte[] all = bigIntegerBlocksToBytes(cipherBlocks, cpBlockSize);
+        String cpText = new String(all, CP437);
+        return new CipherResult(R.getX(), R.getY(), cpText);
     }
 
-    /**
-     * Entschlüsselt eine CP437-codierte Block-Chiffre.
-     */
+    /** Entschlüsselt Block-Tupel-Verfahren. */
     public static String decrypt(
             String cipherText,
             BigInteger Rx,
@@ -64,26 +77,47 @@ public class ECCBlockCipher {
             BigInteger d,
             BigInteger p,
             FiniteFieldEllipticCurve curve) {
-        List<BigInteger> cipherBlocks = cp437StringToBlocks(cipherText, p);
+        int blockSize = getEncryptionBlockSize(p);
+        int cpBlockSize = getDecryptionBlockSize(p) * 2;
+        // 1) CP437 -> BigInteger-Tupel
+        byte[] allBytes = cipherText.getBytes(CP437);
+        List<BigInteger> cipherBlocks = new ArrayList<>();
+        for (int i=0; i<allBytes.length; i+=cpBlockSize) {
+            byte[] chunk = Arrays.copyOfRange(allBytes, i, i+cpBlockSize);
+            cipherBlocks.add(new BigInteger(1, chunk));
+        }
+        // 2) gemeinsames Geheimnis
         ECPoint R = new FiniteFieldECPoint(Rx, Ry).normalize(curve);
         ECPoint shared = R.multiply(d, curve);
-        BigInteger key = shared.getX();
-        List<BigInteger> plainBlocks = new ArrayList<>();
-        for (BigInteger c : cipherBlocks) {
-            plainBlocks.add(c.xor(key));
+        byte[] key = shared.getX().toByteArray();
+        // 3) XOR und Reassemblierung
+        ByteArrayOutputStream os = new ByteArrayOutputStream();
+        for (BigInteger cb : cipherBlocks) {
+            byte[] ct = toFixedLength(cb.toByteArray(), 2*blockSize);
+            byte[] pt = new byte[ct.length];
+            for (int j=0; j<ct.length; j++) pt[j] = (byte)(ct[j] ^ key[j % key.length]);
+            try { os.write(pt); } catch (IOException ignored) {}
         }
-        int blockSize = getEncryptionBlockSize(p);
-        byte[] bytes = bigIntegerBlocksToBytes(plainBlocks, blockSize);
-        return new String(bytes, StandardCharsets.UTF_8).trim();
+        byte[] result = os.toByteArray();
+        // 4) abschneiden von Padding
+        int trimLen = result.length;
+        while (trimLen>0 && result[trimLen-1]==0) trimLen--;
+        return new String(result, 0, trimLen, StandardCharsets.UTF_8);
     }
 
-    // --- Hilfsmethoden für Blockverarbeitung ---
+    // --- Hilfsmethoden ---
+    private static byte[] toFixedLength(byte[] src, int len) {
+        if (src.length==len) return src;
+        byte[] dst = new byte[len];
+        int copy = Math.min(src.length, len);
+        System.arraycopy(src, src.length-copy, dst, len-copy, copy);
+        return dst;
+    }
 
     private static double logBigInteger(BigInteger val) {
         int blex = val.bitLength() - 8;
-        if (blex > 0) val = val.shiftRight(blex);
-        double result = Math.log(val.doubleValue());
-        return result + blex * Math.log(2);
+        if (blex>0) val = val.shiftRight(blex);
+        return Math.log(val.doubleValue()) + blex*Math.log(2);
     }
 
     private static int calculateBlockSize(BigInteger modulus, boolean plusOne) {
@@ -99,50 +133,10 @@ public class ECCBlockCipher {
         return calculateBlockSize(modulus, true);
     }
 
-    private static byte[] zeroPadData(byte[] data, int blockSize) {
-        int missing = data.length % blockSize;
-        if (missing == 0) return data;
-        byte[] padded = new byte[data.length + (blockSize-missing)];
-        System.arraycopy(data, 0, padded, 0, data.length);
-        return padded;
-    }
-
-    private static List<BigInteger> textToBigIntegerBlocks(String text, BigInteger modulus) {
-        byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
-        int blockSize = getEncryptionBlockSize(modulus);
-        byte[] padded = zeroPadData(bytes, blockSize);
-        List<BigInteger> blocks = new ArrayList<>();
-        for (int i=0; i<padded.length; i+=blockSize) {
-            blocks.add(new BigInteger(1, Arrays.copyOfRange(padded,i,i+blockSize)));
-        }
-        return blocks;
-    }
-
-    private static byte[] bigIntegerBlocksToBytes(List<BigInteger> blocks, int blockSize) {
+    private static byte[] bigIntegerBlocksToBytes(
+            List<BigInteger> blocks, int blockSize) {
         ByteArrayOutputStream os = new ByteArrayOutputStream();
-        for (BigInteger b : blocks) {
-            byte[] bb = b.toByteArray();
-            byte[] fixed = new byte[blockSize];
-            int copyLen = Math.min(bb.length, blockSize);
-            System.arraycopy(bb, bb.length-copyLen, fixed, blockSize-copyLen, copyLen);
-            os.writeBytes(fixed);
-        }
+        for (BigInteger b : blocks) os.writeBytes(toFixedLength(b.toByteArray(), blockSize));
         return os.toByteArray();
-    }
-
-    private static String blocksToCp437String(List<BigInteger> blocks, BigInteger modulus) {
-        int dsize = getDecryptionBlockSize(modulus);
-        byte[] all = bigIntegerBlocksToBytes(blocks, dsize);
-        return new String(all, CP437);
-    }
-
-    private static List<BigInteger> cp437StringToBlocks(String text, BigInteger modulus) {
-        byte[] all = text.getBytes(CP437);
-        int dsize = getDecryptionBlockSize(modulus);
-        List<BigInteger> blocks = new ArrayList<>();
-        for (int i=0; i<all.length; i+=dsize) {
-            blocks.add(new BigInteger(1, Arrays.copyOfRange(all,i,i+dsize)));
-        }
-        return blocks;
     }
 }
