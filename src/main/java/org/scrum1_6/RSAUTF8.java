@@ -75,8 +75,8 @@ public class RSAUTF8 {
         if (plusOne) {
             blockSize++;
         }
-        System.out.println("DEBUG: modulus = " + modulus);
-        System.out.println("DEBUG: Berechnete Blockgröße (plusOne=" + plusOne + "): " + blockSize + " Bytes");
+       // System.out.println("DEBUG: modulus = " + modulus);
+        //System.out.println("DEBUG: Berechnete Blockgröße (plusOne=" + plusOne + "): " + blockSize + " Bytes");
         return blockSize;
     }
 
@@ -145,22 +145,22 @@ public class RSAUTF8 {
      */
     public static byte[] bigIntegerBlocksToBytes(List<BigInteger> blocks, int blockLength) {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        System.out.println("DEBUG: Anzahl der Blöcke zum Zusammenfügen: " + blocks.size());
+        //System.out.println("DEBUG: Anzahl der Blöcke zum Zusammenfügen: " + blocks.size());
         try {
             for (int i = 0; i < blocks.size(); i++) {
                 BigInteger block = blocks.get(i);
                 byte[] blockBytes = block.toByteArray();
-                System.out.println("DEBUG: Block " + i + " original Länge: " + blockBytes.length);
+                //System.out.println("DEBUG: Block " + i + " original Länge: " + blockBytes.length);
                 byte[] fixedBlock = new byte[blockLength];
                 if (blockBytes.length > blockLength) {
                     System.arraycopy(blockBytes, blockBytes.length - blockLength, fixedBlock, 0, blockLength);
-                    System.out.println("DEBUG: Block " + i + " wurde gekürzt auf " + blockLength + " Bytes");
+                   // System.out.println("DEBUG: Block " + i + " wurde gekürzt auf " + blockLength + " Bytes");
                 } else if (blockBytes.length < blockLength) {
                     System.arraycopy(blockBytes, 0, fixedBlock, blockLength - blockBytes.length, blockBytes.length);
-                    System.out.println("DEBUG: Block " + i + " wurde aufgefüllt auf " + blockLength + " Bytes");
+                  //  System.out.println("DEBUG: Block " + i + " wurde aufgefüllt auf " + blockLength + " Bytes");
                 } else {
                     fixedBlock = blockBytes;
-                    System.out.println("DEBUG: Block " + i + " hat bereits die korrekte Länge: " + blockLength + " Bytes");
+                  //  System.out.println("DEBUG: Block " + i + " hat bereits die korrekte Länge: " + blockLength + " Bytes");
                 }
                 outputStream.write(fixedBlock);
             }
@@ -168,7 +168,7 @@ public class RSAUTF8 {
             e.printStackTrace();
         }
         byte[] result = outputStream.toByteArray();
-        System.out.println("DEBUG: Gesamtzahl der Bytes nach Zusammenfügen: " + result.length);
+       // System.out.println("DEBUG: Gesamtzahl der Bytes nach Zusammenfügen: " + result.length);
         return result;
     }
 
@@ -177,11 +177,11 @@ public class RSAUTF8 {
      */
     public static String blocksToCp437String(List<BigInteger> blocks, BigInteger modulus) {
         int modBlockSize = getDecryptionBlockSize(modulus);
-        System.out.println("DEBUG: Berechnete Blockgröße für CP437-Darstellung: " + modBlockSize + " Bytes");
+       // System.out.println("DEBUG: Berechnete Blockgröße für CP437-Darstellung: " + modBlockSize + " Bytes");
         byte[] allBytes = bigIntegerBlocksToBytes(blocks, modBlockSize);
-        System.out.println("DEBUG: Anzahl der Bytes im zusammengesetzten CP437-Bytearray: " + allBytes.length);
+       // System.out.println("DEBUG: Anzahl der Bytes im zusammengesetzten CP437-Bytearray: " + allBytes.length);
         String cp437String = new String(allBytes, CP437);
-        System.out.println("DEBUG: CP437-String: " + cp437String);
+       // System.out.println("DEBUG: CP437-String: " + cp437String);
         return cp437String;
     }
 
@@ -203,7 +203,7 @@ public class RSAUTF8 {
             byte[] blockBytes = Arrays.copyOfRange(allBytes, i, i + modBlockSize);
             blocks.add(new BigInteger(1, blockBytes));
         }
-        System.out.println("DEBUG: Anzahl der extrahierten Blöcke: " + blocks.size());
+       // System.out.println("DEBUG: Anzahl der extrahierten Blöcke: " + blocks.size());
         return blocks;
     }
 
@@ -228,7 +228,7 @@ public class RSAUTF8 {
             encryptedBlocks.add(cipherBlock);
         }
         long encryptionTime = System.currentTimeMillis() - startTime;
-        System.out.println("Verschlüsselungszeit: " + encryptionTime + " ms");
+        //System.out.println("Verschlüsselungszeit: " + encryptionTime + " ms");
         return new RSAResult(encryptedBlocks);
     }
 
@@ -252,13 +252,13 @@ public class RSAUTF8 {
             BigInteger plainBlock = schnelleExponentiation.schnelleExponentiation(block, privKey, modulus);
             decryptedBlocks.add(plainBlock);
         }
-        System.out.println("verwendeter modulus: " + modulus);
+       // System.out.println("verwendeter modulus: " + modulus);
         long decryptionTime = System.currentTimeMillis() - startTime;
         int blockSize = getEncryptionBlockSize(modulus);
         byte[] allBytes = bigIntegerBlocksToBytes(decryptedBlocks, blockSize);
         // Verwende trim(), um führende/trailing Nullbytes zu entfernen (wie es auch im BlockCipher erfolgt)
         String clearText = new String(allBytes, StandardCharsets.UTF_8).trim();
-        System.out.println("Entschlüsselungszeit: " + decryptionTime + " ms");
+       // System.out.println("Entschlüsselungszeit: " + decryptionTime + " ms");
         return clearText;
     }
 
