@@ -16,9 +16,9 @@ public class RSAUtils2047 {
     private static final SecureRandom random = new SecureRandom();
 
     // Schlüsseldateien für Alice
-    private static final String E_FILE_ALICE = "rsa2047_e.txt";
-    private static final String N_FILE_ALICE = "rsa2047_n.txt";
-    private static final String D_FILE_ALICE = "rsa2047_d.txt";
+    private static final String E_FILE_ALICE = "alive_e.txt";
+    private static final String N_FILE_ALICE = "alice_n.txt";
+    private static final String D_FILE_ALICE = "alice_d.txt";
 
     private static BigInteger eAlice, nAlice, dAlice;
 

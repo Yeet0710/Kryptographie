@@ -6,7 +6,6 @@ import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
 import java.io.*;
 import java.math.BigInteger;
-import java.nio.charset.Charset;
 import java.security.NoSuchAlgorithmException;
 
 public class RSAGUI extends RSAUTF8 {
@@ -19,7 +18,6 @@ public class RSAGUI extends RSAUTF8 {
     private BigInteger friendPubKey;
     private BigInteger friendModulus;
 
-    private static final Charset CP437 = Charset.forName("Cp437");
     private static final Color BUTTON_COLOR = new Color(70, 130, 180);
 
     public RSAGUI() {
@@ -33,20 +31,19 @@ public class RSAGUI extends RSAUTF8 {
         mainPanel.setBackground(Color.LIGHT_GRAY);
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
 
-        mainPanel.add(createRow("Eigener öffentlicher Schlüssel (Alice, e, n):",
-                ownPublicKeyField = createTextField(RSAUtils2047.getAlicePublicKey() + ", " + RSAUtils2047.getAliceModulus()),
+        mainPanel.add(createRow("Eigener öffentlicher Schlüssel (Alice, n, e):",
+                ownPublicKeyField = createTextField(RSAUtils2047.getAliceModulus() + ", " + RSAUtils2047.getAlicePublicKey() ),
                 createButton("Schlüssel kopieren", e -> copyToClipboard(ownPublicKeyField.getText()))));
 
         mainPanel.add(createRow("Klartext:", inputArea = createTextArea(),
                 createButton("Verschlüsseln (Alice→Bob)", e -> encryptMessage())));
 
-        mainPanel.add(createRow("Verschlüsseltes Chiffrat (CP437):", outputArea = createTextArea(),
+        mainPanel.add(createRow("Verschlüsseltes Chiffrat (Base64):", outputArea = createTextArea(),
                 createButton("Chiffrat speichern", e -> saveCiphertextToFile())));
 
-        mainPanel.add(createRow("Öffentlicher Schlüssel des Partners (e, n):", publicKeyField = createTextArea(),
+        mainPanel.add(createRow("Öffentlicher Schlüssel des Partners (n, e):", publicKeyField = createTextArea(),
                 createButton("Schlüssel übernehmen", e -> setFriendPubKey())));
 
-        // Signaturzeile mit zwei Buttons rechts
         JPanel signaturRow = new JPanel();
         signaturRow.setBackground(Color.LIGHT_GRAY);
         signaturRow.setLayout(new BorderLayout(10, 10));
@@ -63,7 +60,6 @@ public class RSAGUI extends RSAUTF8 {
         scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         signaturRow.add(scrollPane, BorderLayout.CENTER);
 
-// Zwei Buttons untereinander rechts mit gleicher Breite wie andere Buttons
         JPanel buttonPanel = new JPanel(new GridLayout(2, 1, 5, 5));
         buttonPanel.setBackground(Color.LIGHT_GRAY);
 
@@ -77,10 +73,8 @@ public class RSAGUI extends RSAUTF8 {
         buttonPanel.add(verifyButton);
 
         signaturRow.add(buttonPanel, BorderLayout.EAST);
-
         mainPanel.add(signaturRow);
 
-        // Footer mit Navigation
         JPanel footerPanel = new JPanel();
         footerPanel.setBackground(Color.LIGHT_GRAY);
         footerPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 20, 10));
@@ -160,17 +154,17 @@ public class RSAGUI extends RSAUTF8 {
     }
 
     private void saveCiphertextToFile() {
-        String cp437String = outputArea.getText();
-        if (cp437String.isEmpty()) {
+        String base64String = outputArea.getText();
+        if (base64String.isEmpty()) {
             JOptionPane.showMessageDialog(null, "Kein Chiffrat vorhanden!");
             return;
         }
         try {
-            File file = new File("chiffrat.cir");
-            try (OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(file), CP437)) {
-                writer.write(cp437String);
+            File file = new File("geheim.cir");
+            try (OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(file))) {
+                writer.write(base64String);
             }
-            JOptionPane.showMessageDialog(null, "Chiffrat wurde in die Datei 'chiffrat.cir' geschrieben.");
+            JOptionPane.showMessageDialog(null, "Chiffrat wurde in die Datei 'geheim.cir' geschrieben.");
         } catch (IOException ex) {
             JOptionPane.showMessageDialog(null, "Fehler beim Schreiben der Datei: " + ex.getMessage());
         }
@@ -184,8 +178,8 @@ public class RSAGUI extends RSAUTF8 {
         }
         RSAResult result = encrypt(message, true);
         BigInteger usedModulus = RSAUtils.getBobModulus();
-        String cp437String = blocksToCp437String(result.blocks, usedModulus);
-        outputArea.setText(cp437String);
+        String base64String = blocksToBase64String(result.blocks, usedModulus);
+        outputArea.setText(base64String);
     }
 
     private void setFriendPubKey() {
@@ -200,9 +194,9 @@ public class RSAGUI extends RSAUTF8 {
         try {
             String[] parts = input.split(",");
             if (parts.length == 2) {
-                friendPubKey = new BigInteger(parts[0].trim());
-                friendModulus = new BigInteger(parts[1].trim());
-                setPublicKey(friendPubKey, friendModulus);
+                friendModulus = new BigInteger(parts[0].trim());
+                friendPubKey = new BigInteger(parts[1].trim());
+                setPublicKey(friendModulus, friendPubKey);
                 JOptionPane.showMessageDialog(null, "Partner-Schlüssel erfolgreich übernommen!");
             } else {
                 JOptionPane.showMessageDialog(null, "Bitte geben Sie den öffentlichen Schlüssel und Modulus (Komma getrennt) ein.");

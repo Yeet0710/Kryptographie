@@ -42,8 +42,8 @@ public class RSABenchmark {
             // Um die Entschlüsselung zu testen, muss das verschlüsselte Chiffrat
             // in den ursprünglichen Block-Format (BigInteger-Liste) zurückkonvertiert werden.
             // Hier nutzen wir die Methode cp437StringToBlocks, die den String in Blöcke umwandelt.
-            String cp437String = RSAUTF8.blocksToCp437String(encResult.blocks, RSAUtils.getBobModulus());
-            List<BigInteger> recoveredBlocks = RSAUTF8.cp437StringToBlocks(cp437String, RSAUtils.getBobModulus());
+            String cp437String = RSAUTF8.blocksToBase64String(encResult.blocks, RSAUtils.getBobModulus());
+            List<BigInteger> recoveredBlocks = RSAUTF8.base64StringToBlocks(cp437String, RSAUtils.getBobModulus());
             RSAUTF8.RSAResult recoveredResult = new RSAUTF8.RSAResult(recoveredBlocks);
 
             // Entschlüsselung messen
