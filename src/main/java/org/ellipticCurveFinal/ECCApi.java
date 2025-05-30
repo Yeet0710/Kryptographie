@@ -46,7 +46,7 @@ public class ECCApi {
     }
 
     private void generateDomainParameters() {
-        SecureFiniteFieldEllipticCurve sec = new SecureFiniteFieldEllipticCurve(256, 20);
+        SecureFiniteFieldEllipticCurve sec = new SecureFiniteFieldEllipticCurve(512, 20);
         this.curve = sec.getCurve();
         this.p = curve.getP();
         this.q = sec.getQ();
