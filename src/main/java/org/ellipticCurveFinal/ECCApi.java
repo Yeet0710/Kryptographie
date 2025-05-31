@@ -24,6 +24,17 @@ public class ECCApi {
     private BigInteger privateKey;
     private ECPoint publicKey;
 
+    public void setBitlength(int bitlength) {
+        this.bitlength = bitlength;
+    }
+
+    public void setMillerRabin(int millerRabin) {
+        this.millerRabin = millerRabin;
+    }
+
+    private int bitlength = 256;
+    private int millerRabin = 20;
+
     private ECCApi() {
         initialize();
     }
@@ -48,7 +59,7 @@ public class ECCApi {
     }
 
     private void generateDomainParameters() {
-        SecureFiniteFieldEllipticCurve sec = new SecureFiniteFieldEllipticCurve(256, 20);
+        SecureFiniteFieldEllipticCurve sec = new SecureFiniteFieldEllipticCurve(bitlength, millerRabin);
         this.curve = sec.getCurve();
         this.p = curve.getP();
         this.q = sec.getQ();
