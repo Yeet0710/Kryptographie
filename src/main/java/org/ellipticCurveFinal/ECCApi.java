@@ -3,7 +3,9 @@ package org.ellipticCurveFinal;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.util.Properties;
@@ -40,13 +42,13 @@ public class ECCApi {
         } else {
             System.out.println("Generiere neue Domain-Parameter...");
             generateDomainParameters();
-            saveDomainParameters();
         }
         generateKeyPair();
+        saveDomainParameters();
     }
 
     private void generateDomainParameters() {
-        SecureFiniteFieldEllipticCurve sec = new SecureFiniteFieldEllipticCurve(512, 20);
+        SecureFiniteFieldEllipticCurve sec = new SecureFiniteFieldEllipticCurve(256, 20);
         this.curve = sec.getCurve();
         this.p = curve.getP();
         this.q = sec.getQ();
@@ -64,39 +66,68 @@ public class ECCApi {
     }
 
     private boolean loadDomainParametersFromFile() {
+        Path pfad = Path.of(CONFIG_FILE);
+        if (!Files.exists(pfad)) {
+            System.out.println("Datei für Public Key nicht gefunden: " + CONFIG_FILE);
+            return false;
+        }
+
+        // Lese die ganze Zeile (CSV) ein:
+        String line = null;
         try {
-            if (!Files.exists(Paths.get(CONFIG_FILE))) return false;
-            Properties props = new Properties();
-            try (FileInputStream fis = new FileInputStream(CONFIG_FILE)) {
-                props.load(fis);
-            }
-            this.p = new BigInteger(props.getProperty("p"));
-            this.q = new BigInteger(props.getProperty("q"));
-            BigInteger gx = new BigInteger(props.getProperty("Gx"));
-            BigInteger gy = new BigInteger(props.getProperty("Gy"));
-            this.curve = new FiniteFieldEllipticCurve(p);
-            this.curve.setQ(q);
-            this.generator = new FiniteFieldECPoint(gx, gy).normalize(curve);
-            if (!curve.isValidPoint(generator)) return false;
-            return true;
+            line = Files.readString(pfad, StandardCharsets.UTF_8).trim();
         } catch (Exception e) {
-            System.out.println("Fehler Laden Domain-Parameter: " + e.getMessage());
+            System.out.println("Fehler beim einlesen der Datei: " + e);
+        }
+        // Erwarte genau 6 Felder (durch Komma getrennt)
+        String[] parts = line.split(",");
+        if (parts.length != 6) {
+            System.out.println("Ungültiges Public Key‐Format (erwartet 6 Felder): " + line);
+            return false;
+        }
+
+        // Konvertiere in BigInteger und ECPoint:
+        try {
+            // 1) Domain‐Parameter:
+            p = new BigInteger(parts[0]);
+            q = new BigInteger(parts[1]);
+            BigInteger gx = new BigInteger(parts[2]);
+            BigInteger gy = new BigInteger(parts[3]);
+            generator = new FiniteFieldECPoint(gx, gy);
+
+            // 2) Public Key:
+            BigInteger yx = new BigInteger(parts[4]);
+            BigInteger yy = new BigInteger(parts[5]);
+            publicKey = new FiniteFieldECPoint(yx, yy);
+
+            // 3) Rekonstruiere das Kurvenobjekt:
+            FiniteFieldEllipticCurve curve1 = new FiniteFieldEllipticCurve(p);
+            curve = curve1;
+
+            return true;
+        } catch (NumberFormatException nfe) {
+            System.out.println("Fehler beim Parsen des Public Key: " + nfe.getMessage());
             return false;
         }
     }
 
     private void saveDomainParameters() {
+        // 1) Baue den CSV‐String: p, q, Gx, Gy, Yx, Yy
+        StringBuilder sb = new StringBuilder();
+        sb.append(p.toString()).append(",");
+        sb.append(q.toString()).append(",");
+        sb.append(generator.getX().toString()).append(",");
+        sb.append(generator.getY().toString()).append(",");
+        sb.append(publicKey.getX().toString()).append(",");
+        sb.append(publicKey.getY().toString());
+        // (Kein abschließendes Komma, da genau sechs Felder)
+
+        // 2) Schreibe den String in die Datei (UTF-8):
+        Path pfad = Path.of(CONFIG_FILE);
         try {
-            Properties props = new Properties();
-            props.setProperty("p", p.toString());
-            props.setProperty("q", q.toString());
-            props.setProperty("Gx", generator.getX().toString());
-            props.setProperty("Gy", generator.getY().toString());
-            props.setProperty("bitLength", String.valueOf(p.bitLength()));
-            // TODO: write to file
-            System.out.println("Domain-Parameter gespeichert: p-bit="+p.bitLength());
+            Files.write(pfad, sb.toString().getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
-            System.out.println("Fehler beim Speichern: " + e.getMessage());
+            System.out.println("Fehler bei der Datei-Speicherung: " + e);
         }
     }
 
