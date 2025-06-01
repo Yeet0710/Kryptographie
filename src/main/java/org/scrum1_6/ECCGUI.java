@@ -1,5 +1,7 @@
 package org.scrum1_6;
 
+import org.ellipticCurveFinal.ECCApi;
+
 import javax.swing.*;
 import java.awt.*;
 
@@ -11,6 +13,8 @@ public class ECCGUI {
     private final JTextArea publicKeyArea;
     private final JTextArea privateKeyArea;
     private final JLabel durationLabel;
+
+    ECCApi api = ECCApi.getInstance();
 
     public ECCGUI() {
         JFrame frame = new JFrame("ECC-Verschlüsselung");
@@ -100,7 +104,7 @@ public class ECCGUI {
     private void encryptECC() {
         long start = System.currentTimeMillis();
         String klartext = inputArea.getText();
-        String chiffrat = "[Verschlüsselt] " + klartext;
+        String chiffrat = "[Verschlüsselt] " + api.encrypt(klartext);;
         outputArea.setText(chiffrat);
         publicKeyArea.setText("Öffentlicher ECC-Schlüssel: (x, y)");
         privateKeyArea.setText("Privater ECC-Schlüssel: d");
@@ -109,7 +113,7 @@ public class ECCGUI {
 
     private void decryptECC() {
         long start = System.currentTimeMillis();
-        String entschlüsselt = outputArea.getText().replace("[Verschlüsselt] ", "");
+        String entschlüsselt = api.decrypt(outputArea.getText().replace("[Verschlüsselt] ", ""));
         decryptedArea.setText(entschlüsselt);
         durationLabel.setText("Dauer: " + (System.currentTimeMillis() - start) + " ms");
     }

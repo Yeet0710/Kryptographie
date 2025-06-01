@@ -14,6 +14,7 @@ public class ECCApi {
 
     private static ECCApi instance;
     private static final String CONFIG_FILE = "ecc_config.txt";
+    private static final String CONFIG_FILE_PRIVATE = "ecc_config_private.txt";
 
     // Domain-Parameter
     private FiniteFieldEllipticCurve curve;
@@ -54,8 +55,53 @@ public class ECCApi {
             System.out.println("Generiere neue Domain-Parameter...");
             generateDomainParameters();
         }
-        generateKeyPair();
+        if (loadPrivateKeyFromFile()) {
+            System.out.println("Private Key aus der Datei geladen.");
+        } else {
+            generateKeyPair();
+        }
         saveDomainParameters();
+    }
+
+    private boolean loadPrivateKeyFromFile() {
+        Path pfad = Path.of(CONFIG_FILE_PRIVATE);
+        if (!Files.exists(pfad)) {
+            System.out.println("Datei für Private key nicht gefunden: " + CONFIG_FILE_PRIVATE);
+        }
+
+        String line = null;
+        try {
+            line = Files.readString(pfad, StandardCharsets.UTF_8).trim();
+        } catch (Exception e) {
+            System.out.println("Fehler beim einlesen der Datei: " + e);
+        }
+
+        String[] parts = line.split(",");
+        if (parts.length != 5) {
+            System.out.println("Ungültiges Private Key‐Format (erwartet 5 Felder): " + line);
+            return false;
+        }
+
+        try {
+            // 1) Domain‐Parameter:
+            p = new BigInteger(parts[0]);
+            q = new BigInteger(parts[1]);
+            BigInteger gx = new BigInteger(parts[2]);
+            BigInteger gy = new BigInteger(parts[3]);
+            generator = new FiniteFieldECPoint(gx, gy);
+
+            // 2) Private Key:
+            privateKey = new BigInteger(parts[4]);
+
+            // 3) Rekonstruiere das Kurvenobjekt:
+            FiniteFieldEllipticCurve curve1 = new FiniteFieldEllipticCurve(p);
+            curve = curve1;
+
+            return true;
+        } catch (NumberFormatException nfe) {
+            System.out.println("Fehler beim Parsen des Private Key: " + nfe.getMessage());
+            return false;
+        }
     }
 
     private void generateDomainParameters() {
@@ -131,14 +177,29 @@ public class ECCApi {
         sb.append(generator.getY().toString()).append(",");
         sb.append(publicKey.getX().toString()).append(",");
         sb.append(publicKey.getY().toString());
-        // (Kein abschließendes Komma, da genau sechs Felder)
 
         // 2) Schreibe den String in die Datei (UTF-8):
         Path pfad = Path.of(CONFIG_FILE);
         try {
             Files.write(pfad, sb.toString().getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
-            System.out.println("Fehler bei der Datei-Speicherung: " + e);
+            System.out.println("Fehler bei der Datei-Speicherung (Public key): " + e);
+        }
+
+        // 3) Baue den CSV-String für Private-Key
+        StringBuilder sb2 = new StringBuilder();
+        sb2.append(p.toString()).append(",");
+        sb2.append(q.toString()).append(",");
+        sb2.append(generator.getX().toString()).append(",");
+        sb2.append(generator.getY().toString()).append(",");
+        sb2.append(privateKey.toString());
+
+        // 4) Schreibe den String in die Datei
+        pfad = Path.of(CONFIG_FILE_PRIVATE);
+        try {
+            Files.write(pfad, sb2.toString().getBytes(StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            System.out.println("Fehler beim speichern der Datei (Private Key): " + e);
         }
     }
 
@@ -158,18 +219,18 @@ public class ECCApi {
      * Verschlüsselt den Text und liefert Base64-Chiffretext.
      */
     public String encrypt(String text) {
-        ECCElgamalBlockCipher.Result r = ECCElgamalBlockCipher.encrypt(
-                text, generator, publicKey, p, q, curve
-        );
-        return r.base64;
+            ECCElgamalBlockCipher.Result r = ECCElgamalBlockCipher.encrypt(
+                    text, generator, publicKey, p, q, curve
+            );
+            return r.base64;
     }
 
     /**
      * Dekodiert Base64 und entschlüsselt zum Klartext.
      */
-    public String decrypt(String base64) {
+    public String decrypt(String text) {
         ECCElgamalBlockCipher.Result r = ECCElgamalBlockCipher.base64ToResult(
-                base64, p, curve
+                text, p, curve
         );
         return ECCElgamalBlockCipher.decrypt(
                 r, privateKey, p, curve
