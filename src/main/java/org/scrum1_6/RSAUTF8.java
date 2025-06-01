@@ -32,6 +32,9 @@ public class RSAUTF8 {
         }
     }
 
+    /**
+     * Schätzt ln(val) mittels Bit-Shifts, um Overflow zu vermeiden.
+     */
     public static double logBigInteger(BigInteger val) {
         int blex = val.bitLength() - 512;
         if (blex > 0) {
@@ -41,6 +44,9 @@ public class RSAUTF8 {
         return result + blex * Math.log(2);
     }
 
+    /**
+     * Berechnet Blockgröße in Bytes: ⌊log256(modulus)⌋ (+ 1 falls plusOne=true).
+     */
     public static int calculateBlockSize(BigInteger modulus, boolean plusOne) {
         int blockSize = (int) Math.floor(logBigInteger(modulus) / Math.log(256));
         if (plusOne) {
@@ -150,14 +156,18 @@ public class RSAUTF8 {
         return blocks;
     }
 
+    /**
+     * Verschlüsselt eine UTF-8-Nachricht.
+     * Gibt eine RSAResult mit verschlüsselten Blöcken zurück und misst die Zeit.
+     */
     public RSAResult encrypt(String message, boolean fromAlice) {
         BigInteger pubKey, modulus;
         if (fromAlice) {
             pubKey = RSAUtils.getBobPublicKey();
             modulus = RSAUtils.getBobModulus();
         } else {
-            pubKey = RSAUtils2047.getAlicePublicKey();
-            modulus = RSAUtils2047.getAliceModulus();
+            pubKey = RSAUtils.getAlicePublicKey();
+            modulus = RSAUtils.getAliceModulus();
         }
         List<BigInteger> blocks = textToBigIntegerBlocks(message, modulus);
         List<BigInteger> encryptedBlocks = new ArrayList<>();
@@ -174,8 +184,8 @@ public class RSAUTF8 {
     public String decrypt(RSAResult result, boolean toAlice) {
         BigInteger privKey, modulus;
         if (toAlice) {
-            privKey = RSAUtils2047.getAlicePrivateKey();
-            modulus = RSAUtils2047.getAliceModulus();
+            privKey = RSAUtils.getAlicePrivateKey();
+            modulus = RSAUtils.getAliceModulus();
         } else {
             privKey = RSAUtils.getBobPrivateKey();
             modulus = RSAUtils.getBobModulus();
@@ -207,7 +217,7 @@ public class RSAUTF8 {
     }
 
     public static void main(String[] args) {
-        RSAUTF8 rsa = new RSAUTF8(2047);
+        RSAUTF8 rsa = new RSAUTF8(1024);
 
         String messageAliceToBob = "Möge die Macht mit dir sein!";
         System.out.println("Klartext (UTF-8): " + messageAliceToBob);

@@ -4,13 +4,16 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
 import java.math.BigInteger;
 import java.security.NoSuchAlgorithmException;
 
 public class RSAGUI extends RSAUTF8 {
 
+    // GUI-Komponenten
     private final JTextArea ownPublicKeyField;
+    private final JTextArea keyInfoField;
     private final JTextArea inputArea;
     private final JTextArea outputArea;
     private final JTextArea publicKeyField;
@@ -18,11 +21,26 @@ public class RSAGUI extends RSAUTF8 {
     private BigInteger friendPubKey;
     private BigInteger friendModulus;
 
+    private final JSpinner spinnerKeyLength;
+    private final JSpinner spinnerMRIterations;
+
     private static final Color BUTTON_COLOR = new Color(70, 130, 180);
 
     public RSAGUI() {
-        super(2048);
+        super(1024);  // Lädt (wenn vorhanden) bestehende Schlüssel
 
+        // -----------------------------------------------
+        // Ganz zu Beginn des Konstruktors initialisieren:
+        ownPublicKeyField = createTextField(
+                RSAUtils.getAliceModulus() + ", " + RSAUtils.getAlicePublicKey()
+        );
+        ownPublicKeyField.setEditable(false);
+        ownPublicKeyField.setBackground(Color.WHITE);
+        ownPublicKeyField.setLineWrap(true);
+        ownPublicKeyField.setWrapStyleWord(true);
+        // -----------------------------------------------
+
+        // Frame + Hauptpanel
         JFrame frame = new JFrame("RSA-Verschlüsselung (Alice)");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(1200, 800);
@@ -31,75 +49,169 @@ public class RSAGUI extends RSAUTF8 {
         mainPanel.setBackground(Color.LIGHT_GRAY);
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
 
-        mainPanel.add(createRow("Eigener öffentlicher Schlüssel (Alice, n, e):",
-                ownPublicKeyField = createTextField(RSAUtils2047.getAliceModulus() + ", " + RSAUtils2047.getAlicePublicKey() ),
-                createButton("Schlüssel kopieren", e -> copyToClipboard(ownPublicKeyField.getText()))));
+        // ----------------------------------------------------------------------------
+        // 1) Key‐Settings: Spinner für Bitlänge + MR‐Iterationen + Button „Schlüssel generieren“
+        JPanel settingRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 10));
+        settingRow.setBackground(Color.LIGHT_GRAY);
 
-        mainPanel.add(createRow("Klartext:", inputArea = createTextArea(),
-                createButton("Verschlüsseln (Alice→Bob)", e -> encryptMessage())));
+        // Label + Spinner für Key‐Bitlänge
+        JLabel labelKeyLength = new JLabel("<html><b>Key-Bitlänge:</b></html>");
+        spinnerKeyLength = new JSpinner(new SpinnerNumberModel(1024, 512, 4096, 128));
+        spinnerKeyLength.setPreferredSize(new Dimension(80, 30));
 
-        mainPanel.add(createRow("Verschlüsseltes Chiffrat (Base64):", outputArea = createTextArea(),
-                createButton("Chiffrat speichern", e -> saveCiphertextToFile())));
+        // Label + Spinner für Miller‐Rabin‐Iterationen
+        JLabel labelMR = new JLabel("<html><b>MR-Iterationen:</b></html>");
+        spinnerMRIterations = new JSpinner(new SpinnerNumberModel(20, 1, 100, 1));
+        spinnerMRIterations.setPreferredSize(new Dimension(60, 30));
 
-        mainPanel.add(createRow("Öffentlicher Schlüssel des Partners (n, e):", publicKeyField = createTextArea(),
-                createButton("Schlüssel übernehmen", e -> setFriendPubKey())));
+        // Button „Schlüssel generieren“
+        JButton btnGenerateKeys = createButton("Schlüssel generieren", e -> {
+            // 1. Lese die gewählten Werte
+            int keyBits = (Integer) spinnerKeyLength.getValue();
+            int mrIter  = (Integer) spinnerMRIterations.getValue();
 
-        JPanel signaturRow = new JPanel();
+            // 2. Erzeugen und Speichern der Schlüssel
+            try {
+                // Die RSAUtils.generateAndSaveKeys‐Methode
+                RSAUtils.generateAndSaveKeys(
+                        "rsa_e.txt",   // Alice: e
+                        "rsa_n.txt",   // Alice: n
+                        "rsa_d.txt",   // Alice: d
+                        keyBits        // Bitlänge
+                );
+
+                // 3. Lade die frisch erzeugten Schlüssel in die statischen Felder
+                RSAUtils.loadKeysFromFiles();
+
+                // 4. Update: Zeige Alices neuen Public‐Key (n,e) in ownPublicKeyField
+                ownPublicKeyField.setText(
+                        RSAUtils.getAliceModulus() + ", " +
+                                RSAUtils.getAlicePublicKey()
+                );
+
+                // 5. Zeige eine Erfolgsmeldung
+                JOptionPane.showMessageDialog(null,
+                        "Alice- und Bob-Schlüssel wurden erzeugt.\n" +
+                                "Alice-Modulus (Bitlänge): " + RSAUtils.getAliceModulus().bitLength() + "\n" +
+                                "Bob-Modulus   (Bitlänge): " + RSAUtils.getBobModulus().bitLength()
+                );
+            } catch (IOException ex) {
+                JOptionPane.showMessageDialog(null,
+                        "Fehler beim Generieren/Speichern der Schlüssel:\n" + ex.getMessage()
+                );
+            }
+        });
+
+        // Key‐Info‐Feld (zeigt Zeiten, Bitlängen, ...)
+        keyInfoField = new JTextArea(5, 50);
+        keyInfoField.setEditable(false);
+        keyInfoField.setBackground(Color.WHITE);
+        keyInfoField.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        JScrollPane keyInfoScroll = new JScrollPane(keyInfoField);
+        keyInfoScroll.setPreferredSize(new Dimension(800, 100));
+
+        // Alle Komponenten zum settingRow hinzufügen
+        settingRow.add(labelKeyLength);
+        settingRow.add(spinnerKeyLength);
+        settingRow.add(labelMR);
+        settingRow.add(spinnerMRIterations);
+        settingRow.add(btnGenerateKeys);
+        settingRow.add(keyInfoScroll);
+
+        mainPanel.add(settingRow);
+        // ----------------------------------------------------------------------------
+
+        /* 2) Anzeige: Alices öffentlicher Schlüssel (n, e) + „Schlüssel kopieren“
+        ownPublicKeyField = createTextField(
+                (RSAUtils.getAliceModulus() != null ? RSAUtils.getAliceModulus() : BigInteger.ZERO)
+                        + ", " +
+                        (RSAUtils.getAlicePublicKey() != null ? RSAUtils.getAlicePublicKey() : BigInteger.ZERO)
+        );
+
+         */
+        JButton btnCopyOwnKey = createButton("Schlüssel kopieren", e -> {
+            copyToClipboard(ownPublicKeyField.getText());
+        });
+        mainPanel.add(createRow(
+                "Eigener öffentlicher Schlüssel (Alice, n, e):",
+                ownPublicKeyField,
+                btnCopyOwnKey
+        ));
+
+        // 3) Klartext + „Verschlüsseln (Alice→Bob)“
+        inputArea = createTextArea();
+        JButton btnEncrypt = createButton("Verschlüsseln (Alice→Bob)", e -> encryptMessage());
+        mainPanel.add(createRow("Klartext:", inputArea, btnEncrypt));
+
+        // 4) Chiffrat (Base64) + „Chiffrat speichern“
+        outputArea = createTextArea();
+        JButton btnSaveCipher = createButton("Chiffrat speichern", e -> saveCiphertextToFile());
+        mainPanel.add(createRow(
+                "Verschlüsseltes Chiffrat (Base64):",
+                outputArea,
+                btnSaveCipher
+        ));
+
+        // 5) Fremd-PublicKey (n, e) + „Schlüssel übernehmen“
+        publicKeyField = createTextArea();
+        JButton btnSetFriendKey = createButton("Schlüssel übernehmen", e -> setFriendPubKey());
+        mainPanel.add(createRow(
+                "Öffentlicher Schlüssel des Partners (n, e):",
+                publicKeyField,
+                btnSetFriendKey
+        ));
+
+        // 6) Signatur‐Bereich
+        JPanel signaturRow = new JPanel(new BorderLayout(10, 10));
         signaturRow.setBackground(Color.LIGHT_GRAY);
-        signaturRow.setLayout(new BorderLayout(10, 10));
         signaturRow.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
 
-        JLabel label = new JLabel("<html><b>Signatur:</b></html>");
-        label.setPreferredSize(new Dimension(250, 30));
-        signaturRow.add(label, BorderLayout.WEST);
+        JLabel labelSig = new JLabel("<html><b>Signatur:</b></html>");
+        labelSig.setPreferredSize(new Dimension(250, 30));
+        signaturRow.add(labelSig, BorderLayout.WEST);
 
         signatureArea = createTextArea();
-        JScrollPane scrollPane = new JScrollPane(signatureArea);
-        scrollPane.setPreferredSize(new Dimension(600, 80));
-        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
-        signaturRow.add(scrollPane, BorderLayout.CENTER);
+        JScrollPane scrollPaneSig = new JScrollPane(signatureArea);
+        scrollPaneSig.setPreferredSize(new Dimension(600, 80));
+        scrollPaneSig.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scrollPaneSig.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        signaturRow.add(scrollPaneSig, BorderLayout.CENTER);
 
-        JPanel buttonPanel = new JPanel(new GridLayout(2, 1, 5, 5));
-        buttonPanel.setBackground(Color.LIGHT_GRAY);
-
-        JButton signButton = createButton("Signieren", e -> signMessage());
+        JPanel buttonPanelSig = new JPanel(new GridLayout(2, 1, 5, 5));
+        buttonPanelSig.setBackground(Color.LIGHT_GRAY);
+        JButton signButton   = createButton("Signieren",  e -> signMessage());
         JButton verifyButton = createButton("Verifizieren", e -> verifySignature());
+        buttonPanelSig.add(signButton);
+        buttonPanelSig.add(verifyButton);
+        signaturRow.add(buttonPanelSig, BorderLayout.EAST);
 
-        signButton.setPreferredSize(new Dimension(230, 40));
-        verifyButton.setPreferredSize(new Dimension(230, 40));
-
-        buttonPanel.add(signButton);
-        buttonPanel.add(verifyButton);
-
-        signaturRow.add(buttonPanel, BorderLayout.EAST);
         mainPanel.add(signaturRow);
 
-        JPanel footerPanel = new JPanel();
+        // 7) Footer (Navigation)
+        JPanel footerPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
         footerPanel.setBackground(Color.LIGHT_GRAY);
-        footerPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 20, 10));
         footerPanel.add(createButton("Zurück zur Startseite", e -> {
             frame.dispose();
             new StartView();
         }));
         footerPanel.add(createButton("Bob: Entschlüsseln", e -> new BobDecryptionGUI()));
         footerPanel.add(createButton("Alice: Entschlüsseln", e -> new AliceDecryptionGUI()));
-
         mainPanel.add(footerPanel);
 
+        // 8) Frame einpacken, scrollbars aktivieren
         JScrollPane mainScrollPane = new JScrollPane(mainPanel);
         mainScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         mainScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
-
         frame.add(mainScrollPane);
+
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
     }
 
+    // Hilfsmethode: Zeile mit Label + Input + Button
     private JPanel createRow(String labelText, JComponent input, JButton button) {
-        JPanel rowPanel = new JPanel();
+        JPanel rowPanel = new JPanel(new BorderLayout(10, 10));
         rowPanel.setBackground(Color.LIGHT_GRAY);
-        rowPanel.setLayout(new BorderLayout(10, 10));
         rowPanel.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
 
         JLabel label = new JLabel("<html><b>" + labelText + "</b></html>");
@@ -120,6 +232,7 @@ public class RSAGUI extends RSAUTF8 {
         return rowPanel;
     }
 
+    // Hilfsmethode: nicht editierbares TextArea
     private JTextArea createTextField(String text) {
         JTextArea area = new JTextArea(text, 3, 40);
         area.setLineWrap(true);
@@ -130,6 +243,7 @@ public class RSAGUI extends RSAUTF8 {
         return area;
     }
 
+    // Hilfsmethode: editierbares TextArea
     private JTextArea createTextArea() {
         JTextArea area = new JTextArea(4, 40);
         area.setLineWrap(true);
@@ -137,6 +251,7 @@ public class RSAGUI extends RSAUTF8 {
         return area;
     }
 
+    // Hilfsmethode: Button mit einheitlicher Farbe & Schrift
     private JButton createButton(String text, java.awt.event.ActionListener listener) {
         JButton button = new JButton(text);
         button.setFont(new Font("Arial", Font.BOLD, 14));
@@ -147,12 +262,14 @@ public class RSAGUI extends RSAUTF8 {
         return button;
     }
 
+    // Kopieren in Zwischenablage
     private void copyToClipboard(String text) {
         StringSelection selection = new StringSelection(text);
         Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
         clipboard.setContents(selection, null);
     }
 
+    // „Chiffrat speichern“-Logik
     private void saveCiphertextToFile() {
         String base64String = outputArea.getText();
         if (base64String.isEmpty()) {
@@ -161,51 +278,67 @@ public class RSAGUI extends RSAUTF8 {
         }
         try {
             File file = new File("geheim.cir");
-            try (OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(file))) {
+            try (java.io.OutputStreamWriter writer =
+                         new java.io.OutputStreamWriter(new java.io.FileOutputStream(file))) {
                 writer.write(base64String);
             }
-            JOptionPane.showMessageDialog(null, "Chiffrat wurde in die Datei 'geheim.cir' geschrieben.");
+            JOptionPane.showMessageDialog(null, "Chiffrat wurde in Datei 'geheim.cir' geschrieben.");
         } catch (IOException ex) {
-            JOptionPane.showMessageDialog(null, "Fehler beim Schreiben der Datei: " + ex.getMessage());
+            JOptionPane.showMessageDialog(null, "Fehler beim Schreiben: " + ex.getMessage());
         }
     }
 
+    // Verschlüsselungs-Logik
     private void encryptMessage() {
         String message = inputArea.getText().trim();
         if (message.isEmpty()) {
             JOptionPane.showMessageDialog(null, "Bitte geben Sie einen Klartext ein.");
             return;
         }
+        // Verschlüsseln mit Bob's Key (oder gefallest friendKey)
         RSAResult result = encrypt(message, true);
-        BigInteger usedModulus = RSAUtils.getBobModulus();
+        BigInteger usedModulus = (friendPubKey != null && friendModulus != null)
+                ? friendModulus
+                : RSAUtils.getBobModulus();
         String base64String = blocksToBase64String(result.blocks, usedModulus);
         outputArea.setText(base64String);
+
+        // Zeige kurz die Bitlänge des verwendeten Modulus
+        JOptionPane.showMessageDialog(null,
+                "Verschlüsselung abgeschlossen.\n" +
+                        "Modulus-Bitlänge: " + usedModulus.bitLength() + " Bit"
+        );
     }
 
+    // „Partner-Schlüssel übernehmen“-Logik
     private void setFriendPubKey() {
         String input = publicKeyField.getText().trim();
         if (input.isEmpty() || input.equalsIgnoreCase("reset") || input.equalsIgnoreCase("null")) {
             friendPubKey = null;
             friendModulus = null;
             setPublicKey(null, null);
-            JOptionPane.showMessageDialog(null, "Partner-Schlüssel zurückgesetzt. Es wird Bobs Schlüssel verwendet.");
+            JOptionPane.showMessageDialog(null, "Partner-Schlüssel zurückgesetzt. Bobs Schlüssel wird verwendet.");
             return;
         }
         try {
             String[] parts = input.split(",");
             if (parts.length == 2) {
-                friendModulus = new BigInteger(parts[0].trim());
-                friendPubKey = new BigInteger(parts[1].trim());
-                setPublicKey(friendModulus, friendPubKey);
+                BigInteger mod = new BigInteger(parts[0].trim());
+                BigInteger pub = new BigInteger(parts[1].trim());
+                friendModulus = mod;
+                friendPubKey = pub;
+                setPublicKey(mod, pub);
                 JOptionPane.showMessageDialog(null, "Partner-Schlüssel erfolgreich übernommen!");
             } else {
-                JOptionPane.showMessageDialog(null, "Bitte geben Sie den öffentlichen Schlüssel und Modulus (Komma getrennt) ein.");
+                JOptionPane.showMessageDialog(null,
+                        "Bitte gib den öffentlichen Schlüssel und Modulus (Komma-getrennt) ein.");
             }
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(null, "Ungültiger öffentlicher Schlüssel!\n" + e.getMessage());
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(null, "Ungültiger öffentlicher Schlüssel:\n" + ex.getMessage());
         }
     }
 
+    // Signieren-Logik
     private void signMessage() {
         String message = inputArea.getText().trim();
         if (message.isEmpty()) {
@@ -213,35 +346,36 @@ public class RSAGUI extends RSAUTF8 {
             return;
         }
         try {
-            BigInteger signature = RSAUtils2047.sign(message);
+            // RSAUtils.sign(...) aufrufen
+            BigInteger signature = RSAUtils.sign(message);
             signatureArea.setText(signature.toString());
             JOptionPane.showMessageDialog(null, "Nachricht erfolgreich signiert!");
-        } catch (NoSuchAlgorithmException e) {
-            JOptionPane.showMessageDialog(null, "Fehler beim Signieren: " + e.getMessage());
+        } catch (NoSuchAlgorithmException ex) {
+            JOptionPane.showMessageDialog(null, "Fehler beim Signieren: " + ex.getMessage());
         }
     }
 
+    // Verifizieren-Logik
     private void verifySignature() {
         String message = inputArea.getText().trim();
         String signatureText = signatureArea.getText().trim();
-
         if (message.isEmpty() || signatureText.isEmpty()) {
-            JOptionPane.showMessageDialog(null, "Bitte geben Sie sowohl Nachricht als auch Signatur ein.");
+            JOptionPane.showMessageDialog(null, "Bitte geben Sie Nachricht und Signatur ein.");
             return;
         }
-
         try {
+            // RSAUtils.verify(...) aufrufen
             BigInteger signature = new BigInteger(signatureText);
-            boolean isValid = RSAUtils2047.verify(message, signature);
+            boolean isValid = RSAUtils.verify(message, signature);
             if (isValid) {
                 JOptionPane.showMessageDialog(null, "Signatur ist gültig.");
             } else {
                 JOptionPane.showMessageDialog(null, "Signatur ist ungültig.");
             }
-        } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(null, "Ungültiges Signaturformat: " + e.getMessage());
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(null, "Fehler bei der Verifikation: " + e.getMessage());
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(null, "Ungültiges Signaturformat:\n" + ex.getMessage());
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(null, "Fehler bei der Verifikation:\n" + ex.getMessage());
         }
     }
 

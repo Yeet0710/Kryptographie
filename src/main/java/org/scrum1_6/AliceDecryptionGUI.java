@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
 
@@ -15,7 +16,7 @@ public class AliceDecryptionGUI extends RSAUTF8 {
     private static final Charset CP437 = Charset.forName("Cp437");
 
     public AliceDecryptionGUI() {
-        super(2048);
+        super(1024);
         System.out.println("DEBUG: AliceDecryptionGUI wird initialisiert.");
 
         JFrame frame = new JFrame("Alice's Entschlüsselungs-Oberfläche");
@@ -45,10 +46,11 @@ public class AliceDecryptionGUI extends RSAUTF8 {
                 if (selectedFile != null) {
                     try {
                         // Lese den Inhalt der Datei mit CP437 ein
-                        String content = new String(Files.readAllBytes(selectedFile.toPath()), CP437);
-                        System.out.println("DEBUG: Inhalt der Datei (CP437): " + content);
+                        byte[] raw = Files.readAllBytes(selectedFile.toPath());
+                        String content = new String(raw, StandardCharsets.UTF_8).trim();
+                        System.out.println("DEBUG: Inhalt der Datei: " + content);
                         // Verwende Alices Modulus für die Umwandlung der Blöcke
-                        BigInteger modulus = RSAUtils2047.getAliceModulus();
+                        BigInteger modulus = RSAUtils.getAliceModulus();
                         System.out.println("DEBUG: Verwendeter Modulus (Alice): " + modulus);
                         List<BigInteger> recoveredBlocks = base64StringToBlocks(content, modulus);
                         System.out.println("DEBUG: Anzahl der wiederhergestellten Blöcke: " + recoveredBlocks.size());
