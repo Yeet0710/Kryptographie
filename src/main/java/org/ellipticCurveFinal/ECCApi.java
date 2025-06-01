@@ -1,14 +1,10 @@
 package org.ellipticCurveFinal;
 
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.security.SecureRandom;
-import java.util.Properties;
 
 public class ECCApi {
 
@@ -94,8 +90,7 @@ public class ECCApi {
             privateKey = new BigInteger(parts[4]);
 
             // 3) Rekonstruiere das Kurvenobjekt:
-            FiniteFieldEllipticCurve curve1 = new FiniteFieldEllipticCurve(p);
-            curve = curve1;
+            curve = new FiniteFieldEllipticCurve(p);
 
             return true;
         } catch (NumberFormatException nfe) {
@@ -158,8 +153,7 @@ public class ECCApi {
             publicKey = new FiniteFieldECPoint(yx, yy);
 
             // 3) Rekonstruiere das Kurvenobjekt:
-            FiniteFieldEllipticCurve curve1 = new FiniteFieldEllipticCurve(p);
-            curve = curve1;
+            curve = new FiniteFieldEllipticCurve(p);
 
             return true;
         } catch (NumberFormatException nfe) {
@@ -181,7 +175,7 @@ public class ECCApi {
         // 2) Schreibe den String in die Datei (UTF-8):
         Path pfad = Path.of(CONFIG_FILE);
         try {
-            Files.write(pfad, sb.toString().getBytes(StandardCharsets.UTF_8));
+            Files.writeString(pfad, sb.toString());
         } catch (Exception e) {
             System.out.println("Fehler bei der Datei-Speicherung (Public key): " + e);
         }
@@ -197,7 +191,7 @@ public class ECCApi {
         // 4) Schreibe den String in die Datei
         pfad = Path.of(CONFIG_FILE_PRIVATE);
         try {
-            Files.write(pfad, sb2.toString().getBytes(StandardCharsets.UTF_8));
+            Files.writeString(pfad, sb2.toString());
         } catch (Exception e) {
             System.out.println("Fehler beim speichern der Datei (Private Key): " + e);
         }
@@ -236,6 +230,8 @@ public class ECCApi {
                 r, privateKey, p, curve
         );
     }
+
+
 
     // Getter für direkte Nutzung
     public BigInteger getP() { return p; }

@@ -1,8 +1,5 @@
 package org.ellipticCurveFinal;
 
-import org.scrum1_3.schnelleExponentiation;
-import org.scrum1_4.erweiterterEuklid;
-
 import java.math.BigInteger;
 import java.security.SecureRandom;
 import java.util.ArrayList;
