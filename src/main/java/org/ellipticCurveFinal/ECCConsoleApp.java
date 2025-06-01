@@ -1,96 +1,67 @@
 package org.ellipticCurveFinal;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
-import java.math.BigInteger;
-import java.security.SecureRandom;
 import java.util.Scanner;
 
 /**
- * ECCConsoleApp: Demonstriert Verschlüsselung und Entschlüsselung.
+ * Konsolenanwendung zur Demonstration der ECC-ElGamal-Verschlüsselung und -Entschlüsselung.
+ * Bietet folgende Funktionen:
+ * 1) Anzeige der Domain-Parameter (p, q, Generator G)
+ * 2) Anzeige des aktuellen Schlüsselpaares (privat & öffentlich)
+ * 3) Verschlüsselung eines Klartext-Strings
+ * 4) Entschlüsselung eines Base64-Chiffretexts
+ * 5) Beenden
  */
 public class ECCConsoleApp {
 
     public static void main(String[] args) {
-        try {
-            // 1. Kurve und Schlüssel generieren
-            int bitLength = 256;
-            int millerRabinIterations = 20;
-            SecureFiniteFieldEllipticCurve secureCurve =
-                    new SecureFiniteFieldEllipticCurve(bitLength, millerRabinIterations);
-            FiniteFieldEllipticCurve curve = secureCurve.getCurve();
-            BigInteger p = curve.getP();
-            BigInteger q = secureCurve.getQ();
+        Scanner scanner = new Scanner(System.in);
+        ECCApi api = ECCApi.getInstance(1024, 20);
 
-            ECPoint G = curve.findGenerator(q);
-            // privater Schlüssel d
-            SecureRandom random = new SecureRandom();
-            BigInteger d;
-            do {
-                d = new BigInteger(q.bitLength(), random);
-            } while (d.compareTo(BigInteger.ONE) < 0 || d.compareTo(q) >= 0);
-            ECPoint Q = G.multiply(d, curve);
+        boolean running = true;
+        while (running) {
+            System.out.println("\n=== ECC-ElGamal Konsole ===");
+            System.out.println("1) Domain-Parameter anzeigen");
+            System.out.println("2) Schlüsselpaar anzeigen");
+            System.out.println("3) Verschlüsseln");
+            System.out.println("4) Entschlüsseln");
+            System.out.println("5) Beenden");
+            System.out.print("Auswahl: ");
 
-            // 2. Nachricht einlesen
-            Scanner scanner = new Scanner(System.in);
-            System.out.println("Gib die Nachricht ein oder Datei lesen? (j/n)");
             String choice = scanner.nextLine().trim();
-            String plaintext;
-            if (choice.equalsIgnoreCase("j")) {
-                System.out.println("Dateipfad:");
-                plaintext = readFileAsString(scanner.nextLine().trim());
-            } else {
-                System.out.println("Nachricht:\n");
-                plaintext = scanner.nextLine();
-            }
-
-            // 3. Verschlüsselung
-            long startEnc = System.currentTimeMillis();
-            ECCBlockCipher.CipherResult encrypted = ECCBlockCipher.encrypt(
-                    plaintext, G, Q, p, q, curve
-            );
-            long endEnc = System.currentTimeMillis();
-            System.out.println("--- Verschlüsselt ---");
-            System.out.println("Ciphertext: " + encrypted.cipherText);
-            System.out.println("Q.x: " + Q.getX());
-            System.out.println("Q.y: " + Q.getY());
-            System.out.println("p: " + p);
-            System.out.println("G.x: " + G.getX());
-            System.out.println("G.Y: " + G.getY());
-            System.out.println("Verschlüsselungszeit: " + (endEnc - startEnc) + " ms");
-
-            // 4. Entschlüsselung
-            long startDec = System.currentTimeMillis();
-            String decrypted = ECCBlockCipher.decrypt(
-                    encrypted.cipherText,
-                    encrypted.Rx,
-                    encrypted.Ry,
-                    d,
-                    p,
-                    curve
-            );
-            long endDec = System.currentTimeMillis();
-            System.out.println("--- Entschlüsselt ---");
-            System.out.println(decrypted);
-            System.out.println("Entschlüsselungszeit: " + (endDec - startDec) + " ms");
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    /**
-     * Liest Dateiinhalt als UTF-8-String.
-     */
-    private static String readFileAsString(String filePath) throws IOException {
-        StringBuilder sb = new StringBuilder();
-        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                sb.append(line).append(System.lineSeparator());
+            switch (choice) {
+                case "1":
+                    System.out.println("--- Domain-Parameter ---");
+                    System.out.println(api.getDomainParametersDisplay());
+                    break;
+                case "2":
+                    System.out.println("--- Schlüsselpaar ---");
+                    System.out.println(api.getPublicKeyDisplay());
+                    System.out.println(api.getPrivateKeyDisplay());
+                    break;
+                case "3":
+                    System.out.print("Klartext eingeben: ");
+                    String plaintext = scanner.nextLine();
+                    String cipherText = api.encrypt(plaintext);
+                    System.out.println("Chiffretext (Base64): \n" + cipherText);
+                    break;
+                case "4":
+                    System.out.print("Chiffretext (Base64) eingeben: ");
+                    String input = scanner.nextLine();
+                    try {
+                        String decrypted = api.decrypt(input);
+                        System.out.println("Entschlüsselter Klartext: \n" + decrypted);
+                    } catch (Exception e) {
+                        System.out.println("Fehler bei der Entschlüsselung: " + e.getMessage());
+                    }
+                    break;
+                case "5":
+                    running = false;
+                    System.out.println("Beende Anwendung. Auf Wiedersehen!");
+                    break;
+                default:
+                    System.out.println("Ungültige Auswahl. Bitte 1-5 wählen.");
             }
         }
-        return sb.toString();
+        scanner.close();
     }
 }
