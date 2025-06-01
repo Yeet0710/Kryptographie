@@ -14,7 +14,7 @@ public class ECCGUI {
     private final JTextArea privateKeyArea;
     private final JLabel durationLabel;
 
-    ECCApi api = ECCApi.getInstance();
+    ECCApi api = ECCApi.getInstance(1024, 20);
 
     public ECCGUI() {
         JFrame frame = new JFrame("ECC-Verschlüsselung");

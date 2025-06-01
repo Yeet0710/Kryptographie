@@ -162,35 +162,4 @@ public class ECCElgamalBlockCipher {
         return out;
     }
 
-    /**
-     * Demo wie RSAUTF8.main: zeigt Blöcke, Base64 und entschlüsselten Text.
-     */
-    public static void main(String[] args) {
-        // Demo: Parameter & Schlüssel aus API
-        ECCApi api = ECCApi.getInstance();
-        BigInteger p = api.getP();
-        BigInteger q = api.getQ();
-        ECPoint g = api.getG();
-        ECPoint y = api.getPublicKey();
-        BigInteger x = api.getPrivateKey();
-        FiniteFieldEllipticCurve curve = api.getCurve();
-
-        String message = "Hallo ECC-ElGamal!";
-        System.out.println("Klartext: " + message);
-
-        // Verschlüsseln
-        Result enc = encrypt(message, g, y, p, q, curve);
-        System.out.println("\n-- Roh-Blöcke --");
-        for (int i=0; i<enc.ax.length; i++) {
-            System.out.printf("Block %d: a=(%s,%s), b=(%s,%s)%n",
-                    i, enc.ax[i], enc.ay[i], enc.b1[i], enc.b2[i]);
-        }
-        System.out.println("Base64-Chiffretext: " + enc.base64);
-
-        // Aus Base64 wieder in Blöcke
-        Result parsed = base64ToResult(enc.base64, p, curve);
-        // Entschlüsseln
-        String dec = decrypt(parsed, x, p, curve);
-        System.out.println("\nEntschlüsselter Text: " + dec);
-    }
 }

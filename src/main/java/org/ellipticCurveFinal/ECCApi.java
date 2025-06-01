@@ -32,19 +32,21 @@ public class ECCApi {
     private int bitlength = 256;
     private int millerRabin = 20;
 
-    private ECCApi() {
-        initialize();
+    private ECCApi(int bitlength, int millerRabin) {
+        initialize(bitlength, millerRabin);
     }
 
-    public static synchronized ECCApi getInstance() {
+    public static synchronized ECCApi getInstance(int bitlength, int millerRabin) {
         if (instance == null) {
-            instance = new ECCApi();
+            instance = new ECCApi(bitlength, millerRabin);
         }
         return instance;
     }
 
-    private void initialize() {
+    private void initialize(int bitlength, int millerRabin) {
         System.out.println("=== ECC-System Initialisierung ===");
+        this.bitlength = bitlength;
+        this.millerRabin = millerRabin;
         if (loadDomainParametersFromFile()) {
             System.out.println("Parameter aus Datei geladen.");
         } else {

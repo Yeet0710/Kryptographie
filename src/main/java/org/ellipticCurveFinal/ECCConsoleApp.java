@@ -15,7 +15,7 @@ public class ECCConsoleApp {
 
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
-        ECCApi api = ECCApi.getInstance();
+        ECCApi api = ECCApi.getInstance(1024, 20);
 
         boolean running = true;
         while (running) {
