@@ -67,8 +67,8 @@ public class FiniteFieldECPoint extends ECPoint {
 
         // Formel: λ = (3x² + a) / (2y) mod p, wobei a = -1.
         BigInteger numerator = (this.x.modPow(BigInteger.valueOf(2), p).multiply(BigInteger.valueOf(3))
-                .add(curve.getA())).mod(p);
-        BigInteger denominator = (this.y.multiply(BigInteger.valueOf(2))).mod(p);
+                .add(curve.getA())).mod(p); // (3x² + a)
+        BigInteger denominator = (this.y.multiply(BigInteger.valueOf(2))).mod(p); // (2y) mod p
         BigInteger lambda = numerator.multiply(denominator.modInverse(p)).mod(p);
 
         BigInteger newX = lambda.modPow(BigInteger.valueOf(2), p)
