@@ -1,9 +1,11 @@
 package org.scrum1_6;
 
 import org.ellipticCurveFinal.ECCApi;
+import org.ellipticCurveFinal.ECCSignature;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.concurrent.Flow;
 
 public class ECCGUI {
 
@@ -13,10 +15,17 @@ public class ECCGUI {
     private final JTextArea publicKeyArea;
     private final JTextArea privateKeyArea;
     private final JLabel durationLabel;
+    // Felder für Bitlänge und Miller-Rabin
+    private final JTextField bitlengthField;
+    private final JTextField millerRabinField;
 
-    ECCApi api = ECCApi.getInstance(10, 100);
+    private ECCApi api;
+    private ECCSignature.Signature lastSignature;
 
     public ECCGUI() {
+        //Standardwerte
+        api = ECCApi.getInstance(256, 20);
+
         JFrame frame = new JFrame("ECC-Verschlüsselung");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(1200, 800);
@@ -24,6 +33,26 @@ public class ECCGUI {
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
         mainPanel.setBackground(Color.LIGHT_GRAY);
+
+        //Panel für Schlüssel-Generierung
+        JPanel paramPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
+        paramPanel.setBackground(Color.LIGHT_GRAY);
+        paramPanel.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
+
+        paramPanel.add(new JLabel("<html><b>Bitlänge:</b></html>"));
+        // Hier sind 5 Spalten angegeben – das Feld bleibt also klein
+        bitlengthField = new JTextField("256", 5);
+        paramPanel.add(bitlengthField);
+
+        paramPanel.add(new JLabel("<html><b>Miller-Rabin:</b></html>"));
+        millerRabinField = new JTextField("20", 5);
+        paramPanel.add(millerRabinField);
+
+        JButton setParamsButton = createButton("Parameter setzen", e -> setParameters());
+        paramPanel.add(setParamsButton);
+
+        // Ganz oben ins mainPanel einfügen
+        mainPanel.add(paramPanel);
 
         // Klartext-Eingabe
         mainPanel.add(createRow("Klartext:", inputArea = createTextArea(),
@@ -50,6 +79,17 @@ public class ECCGUI {
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
     }
+
+    private void setParameters() {
+        int bits = Integer.parseInt(bitlengthField.getText().trim());
+        int mr = Integer.parseInt(millerRabinField.getText().trim());
+        //Neue Instanz erzeugen
+        api.generateKeysAndParameters(bits, mr);
+        //Schlüssel anzeigen
+        publicKeyArea.setText("Öffentlicher Schlüssel: " + api.getPublicKeyDisplay());
+        privateKeyArea.setText("Privater Schlüssel: " + api.getPrivateKeyDisplay());
+    }
+
 
     private JPanel createRow(String labelText, JComponent input, JButton button) {
         JPanel row = new JPanel(new BorderLayout(10, 10));
@@ -105,8 +145,6 @@ public class ECCGUI {
         long start = System.currentTimeMillis();
         String klartext = inputArea.getText();
         String chiffrat = "[Verschlüsselt] " + api.encrypt(klartext);
-        api.sign(klartext);
-        api.verify(klartext);
         outputArea.setText(chiffrat);
         publicKeyArea.setText("Öffentlicher ECC-Schlüssel: (x, y)");
         privateKeyArea.setText("Privater ECC-Schlüssel: d");

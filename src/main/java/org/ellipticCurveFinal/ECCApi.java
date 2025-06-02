@@ -107,6 +107,14 @@ public class ECCApi {
         }
     }
 
+    public void generateKeysAndParameters(int bitlength, int millerRabin) {
+        setBitlength(bitlength);
+        setMillerRabin(millerRabin);
+        generateDomainParameters();
+        generateKeyPair();
+        saveDomainParameters();
+    }
+
     private void generateDomainParameters() {
         SecureFiniteFieldEllipticCurve sec = new SecureFiniteFieldEllipticCurve(bitlength, millerRabin);
         this.curve = sec.getCurve();
