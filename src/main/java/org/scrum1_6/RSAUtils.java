@@ -14,6 +14,7 @@ import java.security.SecureRandom;
 
 public class RSAUtils {
     private static final SecureRandom random = new SecureRandom();
+    private static final int DEFAULT_MR_ITERATIONS = 20;
 
     // Schlüsseldateien für Alice
     private static final String E_FILE_ALICE = "rsa_e.txt";
@@ -28,25 +29,58 @@ public class RSAUtils {
     private static BigInteger eAlice, nAlice, dAlice;
     private static BigInteger eBob, nBob, dBob;
 
-    // Schlüsselgenerierung für Alice & Bob
+    /**
+     * Generiert und speichert RSA-Schlüssel (e, n, d) in Dateien.
+     * Misst dabei die Zeit, die für die Primzahlerzeugung benötigt wird.
+     * @param eFile      Dateiname für e
+     * @param nFile      Dateiname für n
+     * @param dFile      Dateiname für d
+     * @param bitLength  gewünschte Bitlänge (z.B. 1024, 2048)
+     * @return           Array {n, ZeitPrimP, ZeitPrimQ, GesamtzeitMillis}
+     * @throws IOException
+     */
     public static void generateAndSaveKeys(String eFile, String nFile, String dFile, int bitLength) throws IOException {
         BigInteger lowerBound = schnelleExponentiation.schnelleExponentiation(BigInteger.TWO, BigInteger.valueOf(bitLength / 2 - 1), BigInteger.valueOf(2).pow(bitLength));
         BigInteger upperBound = schnelleExponentiation.schnelleExponentiation(BigInteger.TWO, BigInteger.valueOf(bitLength / 2), BigInteger.valueOf(2).pow(bitLength));
 
-        BigInteger p = PrimGenerator.generateRandomPrime(lowerBound, upperBound, 20);
-        BigInteger q = PrimGenerator.generateRandomPrime(lowerBound, upperBound, 20);
+        System.out.println("---- Starte RSA-Schlüsselgenerierung (" + bitLength + " Bit) ----");
 
+        // 1) p erzeugen (mit Zeitmessung)
+        System.out.print("Erzeuge p (Primzahl) ... ");
+        long startP = System.currentTimeMillis();
+        BigInteger p = PrimGenerator.generateRandomPrime(lowerBound, upperBound, DEFAULT_MR_ITERATIONS);
+        long timeP = System.currentTimeMillis() - startP;
+        System.out.println("fertig (" + timeP + " ms). p hat Bitlänge = " + p.bitLength());
+
+        // 2) q erzeugen (mit Zeitmessung)
+        System.out.print("Erzeuge q (Primzahl) ... ");
+        long startQ = System.currentTimeMillis();
+        BigInteger q = PrimGenerator.generateRandomPrime(lowerBound, upperBound, DEFAULT_MR_ITERATIONS);
+        long timeQ = System.currentTimeMillis() - startQ;
+        System.out.println("fertig (" + timeQ + " ms). q hat Bitlänge = " + q.bitLength());
+
+        // 3) n und phi(n) berechnen
         BigInteger n = p.multiply(q);
         BigInteger phi = (p.subtract(BigInteger.ONE)).multiply(q.subtract(BigInteger.ONE));
 
+        System.out.println("Berechne n = p * q; n hat Bitlänge = " + n.bitLength());
+        System.out.println("Berechne φ(n) = (p-1)*(q-1)");
+
+        // 4) e wählen (z.B. zufällig mit (bitLength/2) Bit Länge), solange gcd(e, phi) != 1
+        System.out.print("Wähle e, sodass gcd(e, φ(n)) = 1 ... ");
         BigInteger e;
         do {
             e = new BigInteger(bitLength / 2, random);
         } while (!erweiterterEuklid.sindTeilerfremd(phi, e));
 
+        // 5) d = e^(-1) mod φ(n) berechnen
         BigInteger d = erweiterterEuklid.erweiterterEuklid(e, phi)[1].mod(phi).add(phi).mod(phi);
 
+        // 6) Schlüssel in Dateien speichern
         saveKeysToFile(e, n, d, eFile, nFile, dFile);
+        System.out.println("Schlüssel gespeichert in Dateien: ");
+        System.out.println("  " + eFile + ", " + nFile + ", " + dFile);
+        System.out.println("---- Schlüsselgenerierung beendet ----\n");
     }
 
     // Speichert Schlüssel in Datei
@@ -119,7 +153,7 @@ public class RSAUtils {
     // Verifikation mit Alice PubKey
     public static boolean verify(String message, BigInteger signature) throws NoSuchAlgorithmException {
         BigInteger hash = hashMessage(message);
-        BigInteger decryptedHash = schnelleExponentiation.schnelleExponentiation(signature, eAlice, nAlice);
+        BigInteger decryptedHash = schnelleExponentiation.schnelleExponentiation(signature, eBob, nBob);
         return hash.equals(decryptedHash);
     }
 
@@ -158,13 +192,22 @@ public class RSAUtils {
             System.out.println("Bob's Modulus (n): " + getBobModulus());
             System.out.println("Bob's Privater Schlüssel (d): " + getBobPrivateKey());
 
-            // Test Signatur & Verifikation
-            String message = "Hallo RSA";
-            BigInteger signature = sign(message);
-            System.out.println("\nSignatur: " + signature);
+            // Beispiel: Signatur und Verifikation
+            String message = "abcd";
+            System.out.println("\n== Test-Signatur & Verifikation ==");
+            System.out.println("Nachricht: \"" + message + "\"");
 
+            long startSign = System.currentTimeMillis();
+            BigInteger signature = sign(message);
+            long timeSign = System.currentTimeMillis() - startSign;
+            System.out.println("Signatur: " + signature);
+            System.out.println("Signatur‐Dauer: " + timeSign + " ms");
+
+            long startVer = System.currentTimeMillis();
             boolean isValid = verify(message, signature);
-            System.out.println("Verifizierung: " + isValid);
+            long timeVer = System.currentTimeMillis() - startVer;
+            System.out.println("Verifikation erfolgreich? " + isValid);
+            System.out.println("Verifikations‐Dauer: " + timeVer + " ms");
         } catch (Exception e) {
             System.out.println("Fehler: " + e.getMessage());
         }

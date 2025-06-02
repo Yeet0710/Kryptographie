@@ -51,7 +51,7 @@ public class BobDecryptionGUI extends RSAUTF8 {
                         // Verwende Bobs Modulus für die Umwandlung der Blöcke
                         BigInteger modulus = RSAUtils.getBobModulus();
                         System.out.println("DEBUG: Verwendeter Modulus (Alice): " + modulus);
-                        List<BigInteger> recoveredBlocks = cp437StringToBlocks(content, modulus);
+                        List<BigInteger> recoveredBlocks = base64StringToBlocks(content, modulus);
                         System.out.println("DEBUG: Anzahl der wiederhergestellten Blöcke: " + recoveredBlocks.size());
                         for (int i = 0; i < recoveredBlocks.size(); i++) {
                             System.out.println("DEBUG: Wiederhergestellter Block " + i + ": " + recoveredBlocks.get(i));

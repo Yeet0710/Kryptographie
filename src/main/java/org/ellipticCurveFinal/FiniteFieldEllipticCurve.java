@@ -1,8 +1,5 @@
 package org.ellipticCurveFinal;
 
-import org.scrum1_3.schnelleExponentiation;
-import org.scrum1_4.erweiterterEuklid;
-
 import java.math.BigInteger;
 import java.security.SecureRandom;
 import java.util.ArrayList;
@@ -56,62 +53,48 @@ public class FiniteFieldEllipticCurve {
         return left.equals(right);
     }
 
-    public ECPoint findGenerator() {
+    /**
+     * Findet einen Generator per Kofaktor-Methode
+     * -------------------------------------------
+     * Wählt einen zufälligen Kurvenpunkt aus,
+     * multipliziert ihn einmal mit dem festen Faktor (8)
+     * und prüft nur, ob das Ergebnis nicht der Punkt im Unendlichen ist.
+     * Damit entfällt das bisherige aufwändige Testen mehrerer Vielfacher.
+     *
+     * @param q Die Ordnung der gesuchten Untergruppe.
+     * @return Ein Generator der Untergruppe ermittelt durch einmalige Kofaktor-Multiplikation.
+     */
+    public ECPoint findGenerator(BigInteger q) {
         SecureRandom random = new SecureRandom();
-        long counter = 0;
+        BigInteger legExp = p.subtract(BigInteger.ONE).divide(BigInteger.valueOf(2));
+        BigInteger eight = BigInteger.valueOf(8);
+
         while (true) {
-            System.out.println("Iteration: " + counter);
-            counter++;
-            // (a) Zufällig x ∈ Z_p* wählen
+            // Zufälliges x in F_p
             BigInteger x = new BigInteger(p.bitLength(), random).mod(p);
-            if(x.equals(BigInteger.ZERO)) continue;
-            // (b) r = x^3 - x mod p berechnen
-            BigInteger r = x.pow(3).subtract(x).mod(p);
-            // Prüfe: r^((p-1)/2) ≡ 1 mod p mit schnellerExponentiation:
-            BigInteger exp = p.subtract(BigInteger.ONE).divide(BigInteger.valueOf(2));
-            if (!schnelleExponentiation.schnelleExponentiation(r, exp, p).equals(BigInteger.ONE)) {
-                continue;
+            // r = x^3 - x mod p
+            BigInteger r = x.modPow(BigInteger.valueOf(3), p).subtract(x).mod(p);
+            // Legendre-Symbol test: r^((p-1)/2) mod p == 1
+            if (!r.modPow(legExp, p).equals(BigInteger.ONE)) continue;
+            // Quadratwurzel für p ≡ 5 mod 8: y = r^((p+3)/8) mod p
+            BigInteger exp = p.add(BigInteger.valueOf(3)).divide(BigInteger.valueOf(8));
+            BigInteger y = r.modPow(exp, p);
+            // Falls nötig, nochmals prüfen
+            if (!y.modPow(BigInteger.valueOf(2), p).equals(r)) continue;
+
+            ECPoint g0 = new FiniteFieldECPoint(x, y).normalize(this);
+            if (!isValidPoint(g0)) continue;
+
+            // Kofaktor-Multiplikation
+            ECPoint g = g0.multiply(eight, this);
+            // Rückgabe, sobald g != O
+            if (!(g instanceof InfinitePoint)) {
+                return g;
             }
-            // (c) Berechne r^((p-1)/4) mod p
-            BigInteger exp2 = p.subtract(BigInteger.ONE).divide(BigInteger.valueOf(4));
-            BigInteger rExp = schnelleExponentiation.schnelleExponentiation(r, exp2, p);
-            BigInteger y;
-            // Berechne den modularen Inversen von 8 mod p mithilfe des erweiterten Euklidischen Algorithmus:
-            BigInteger eight = BigInteger.valueOf(8);
-            BigInteger[] ee = erweiterterEuklid.erweiterterEuklid(eight, p);
-            BigInteger inv8 = ee[1].mod(p); // x-Koordinate als Inverser
-            // Unterscheide zwei Fälle:
-            if (rExp.equals(BigInteger.ONE)) {
-                // Falls r^((p-1)/4) ≡ 1: y = [r*(p+3)/8] mod p
-                y = r.multiply(p.add(BigInteger.valueOf(3))).mod(p);
-                y = y.multiply(inv8).mod(p);
-            } else if (rExp.equals(p.subtract(BigInteger.ONE))) { // d.h. r^((p-1)/4) ≡ -1 mod p
-                // Falls r^((p-1)/4) ≡ -1: y = [((p+1)/2) * (4*r) * (p+3)/8] mod p.
-                BigInteger part1 = p.add(BigInteger.ONE).divide(BigInteger.valueOf(2));
-                BigInteger part2 = BigInteger.valueOf(4).multiply(r).mod(p);
-                BigInteger part3 = p.add(BigInteger.valueOf(3)).mod(p);
-                y = part1.multiply(part2).mod(p);
-                y = y.multiply(part3).mod(p);
-                y = y.multiply(inv8).mod(p);
-            } else {
-                continue;
-            }
-            System.out.println("Schritt d");
-            // (d) Kandidatenpunkt g = (x,y) bilden und normalisieren
-            ECPoint candidate = new FiniteFieldECPoint(x, y).normalize(this);
-            if (!this.isValidPoint(candidate)) continue;
-            // (e) Überprüfe, ob candidate eine kleine Ordnung hat:
-            System.out.println(candidate.multiply(BigInteger.valueOf(2), this));
-            if (candidate.multiply(BigInteger.valueOf(2), this) instanceof InfinitePoint ||
-                    candidate.multiply(BigInteger.valueOf(4), this) instanceof InfinitePoint ||
-                    candidate.multiply(BigInteger.valueOf(8), this) instanceof InfinitePoint) {
-                System.out.println("Zu kleine Ordnung");
-                continue; // Kandidat mit zu kleiner Ordnung verwerfen
-            }
-            System.out.println("Generator gefunden: " + candidate);
-            return candidate;
         }
     }
+
+
 
 
 
@@ -172,58 +155,73 @@ public class FiniteFieldEllipticCurve {
             }
 
             /**
-             * Stellt eine Primzahl p ≡ 1 mod 4 (und somit auch p ≡ 5 mod 8) als Summe zweier Quadrate p = x² + y² dar.
-             * Es wird Cornacchias Algorithmus verwendet, der auch bei großen p effizient arbeitet.
-             * Diese Methode gibt konsolenbasierte Statusmeldungen aus.
+             * 2(a): Stelle p als Summe zweier Quadrate dar mittels Algorithmus 3.2 aus Kryptographie2.pdf.
              *
-             * Schritt 1: Bestimme effizient ein t mit t² ≡ -1 mod p über einen probabilistischen Ansatz.
-             * Schritt 2: Führe den modifizierten euklidischen Algorithmus durch, solange r1² > p gilt.
-             * Schritt 3: Ermittle y aus y² = p - r1² und gebe das Paar (x,y) zurück (sortiert, sodass x ≤ y).
-             *
-             * @param p eine Primzahl, für die p ≡ 1 mod 4 gilt
-             * @return SumOfSquares-Instanz mit x und y, sodass p = x² + y²
+             * @param p Eine Primzahl, p ≡ 1 mod 4.
+             * @return SumOfSquares-Instanz mit (x,y), sodass p = x² + y² und x gerade, y ungerade.
              */
             public static SumOfSquares represent(BigInteger p) {
-                System.out.println("[Cornacchia] Starte Darstellung von p als Summe zweier Quadrate.");
-                if (!p.mod(BigInteger.valueOf(4)).equals(BigInteger.ONE)) {
+                BigInteger ONE = BigInteger.ONE;
+                BigInteger FOUR = BigInteger.valueOf(4);
+                if (!p.mod(FOUR).equals(ONE)) {
                     throw new IllegalArgumentException("p muss ≡ 1 mod 4 sein.");
                 }
-
-                // Schritt 1: Suche effizient ein t mit t² ≡ -1 mod p
-                BigInteger t = findSqrtOfMinusOne(p);
-
-                // Schritt 2: Anwenden des euklidischen Algorithmus
-                BigInteger r0 = p;
-                BigInteger r1 = t;
-                System.out.println("[Cornacchia] Starte euklidischen Algorithmus: r0 = p, r1 = t = " + t);
-                int step = 0;
-                while (r1.multiply(r1).compareTo(p) > 0) {
-                    BigInteger r2 = r0.mod(r1);
-                    r0 = r1;
-                    r1 = r2;
-                    step++;
-                    if (step % 5 == 0) {
-                        System.out.println("[Cornacchia] Schritt " + step + ": r0 = " + r0 + ", r1 = " + r1);
+                SecureRandom rnd = new SecureRandom();
+                // Schritt 1: Finde z quadratischen Nichtrest
+                BigInteger z;
+                BigInteger leg;
+                do {
+                    z = new BigInteger(p.bitLength(), rnd).mod(p.subtract(ONE)).add(ONE);
+                    leg = z.modPow(p.subtract(ONE).divide(BigInteger.valueOf(2)), p);
+                } while (!leg.equals(p.subtract(ONE)));
+                // Schritt 2: w = z^((p-1)/4) mod p
+                BigInteger w = z.modPow(p.subtract(ONE).divide(FOUR), p);
+                // Schritt 3: GGT in ZZ[i] zwischen p und w + i
+                class Gaussian {
+                    BigInteger re, im;
+                    Gaussian(BigInteger a, BigInteger b) { re = a; im = b; }
+                    Gaussian sub(Gaussian o) { return new Gaussian(re.subtract(o.re), im.subtract(o.im)); }
+                    Gaussian mul(Gaussian o) {
+                        return new Gaussian(
+                                re.multiply(o.re).subtract(im.multiply(o.im)),
+                                re.multiply(o.im).add(im.multiply(o.re))
+                        );
                     }
+                    BigInteger norm() { return re.multiply(re).add(im.multiply(im)); }
+                    boolean isZero() { return re.equals(BigInteger.ZERO) && im.equals(BigInteger.ZERO); }
                 }
-                System.out.println("[Cornacchia] Euklidischer Algorithmus beendet: r1 = " + r1);
-
-                // Schritt 3: Berechne y² = p - r1² und bestimme y
-                BigInteger x = r1;
-                BigInteger ySquared = p.subtract(x.multiply(x));
-                BigInteger y = sqrtFloor(ySquared);
-                if (!y.multiply(y).equals(ySquared)) {
-                    throw new IllegalStateException("Darstellung von p als Summe zweier Quadrate nicht möglich (kein perfektes Quadrat bei y²).");
+                Gaussian g0 = new Gaussian(p, BigInteger.ZERO);
+                Gaussian g1 = new Gaussian(w, BigInteger.ONE);
+                // Euklidischer Algorithmus in ZZ[i]
+                while (!g1.isZero()) {
+                    BigInteger denom = g1.norm();
+                    BigInteger numRe = g0.re.multiply(g1.re).add(g0.im.multiply(g1.im));
+                    BigInteger numIm = g0.im.multiply(g1.re).subtract(g0.re.multiply(g1.im));
+                    // Runden zu nächster ganzer Zahl
+                    BigInteger q0Re = numRe.divide(denom);
+                    BigInteger remRe = numRe.remainder(denom);
+                    BigInteger qRe = remRe.abs().shiftLeft(1).compareTo(denom) >= 0
+                            ? q0Re.add(BigInteger.valueOf(remRe.signum())) : q0Re;
+                    BigInteger q0Im = numIm.divide(denom);
+                    BigInteger remIm = numIm.remainder(denom);
+                    BigInteger qIm = remIm.abs().shiftLeft(1).compareTo(denom) >= 0
+                            ? q0Im.add(BigInteger.valueOf(remIm.signum())) : q0Im;
+                    Gaussian q = new Gaussian(qRe, qIm);
+                    Gaussian tmp = g0.sub(g1.mul(q));
+                    g0 = g1;
+                    g1 = tmp;
                 }
-                if (x.compareTo(y) > 0) {
-                    // Tausche, sodass x ≤ y
-                    BigInteger temp = x;
-                    x = y;
-                    y = temp;
+                BigInteger c = g0.re.abs();
+                BigInteger d = g0.im.abs();
+                // Sortiere x ≤ y und korrigiere Parität: x gerade, y ungerade
+                BigInteger x = c.min(d);
+                BigInteger y = c.max(d);
+                if (x.mod(BigInteger.TWO).compareTo(BigInteger.ZERO) != 0) {
+                    BigInteger tmp = x; x = y; y = tmp;
                 }
-                System.out.println("[Cornacchia] Erfolgreiche Darstellung: p = " + p + " = " + x + "^2 + " + y + "^2");
                 return new SumOfSquares(x, y);
             }
+
 
             /**
              * Effiziente Suche nach t, sodass t² ≡ -1 mod p, mithilfe eines probabilistischen Ansatzes.

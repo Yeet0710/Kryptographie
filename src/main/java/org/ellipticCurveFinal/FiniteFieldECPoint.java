@@ -60,6 +60,11 @@ public class FiniteFieldECPoint extends ECPoint {
     @Override
     public ECPoint doublePoint(FiniteFieldEllipticCurve curve) {
         BigInteger p = curve.getP();
+
+        if (this.y.mod(p).equals(BigInteger.ZERO)) {
+            return InfinitePoint.getInstance();
+        }
+
         // Formel: λ = (3x² + a) / (2y) mod p, wobei a = -1.
         BigInteger numerator = (this.x.modPow(BigInteger.valueOf(2), p).multiply(BigInteger.valueOf(3))
                 .add(curve.getA())).mod(p);

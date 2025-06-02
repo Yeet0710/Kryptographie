@@ -14,23 +14,31 @@ public class PrimGenerator {
      * @return Eine zufällige Primzahl im gegebenen Bereich
      */
     public static BigInteger generateRandomPrime(BigInteger a, BigInteger b, int mrIterations) {
-        // Kontrolle das a > b
+        // Kontrolle, dass a ≤ b
         if (a.compareTo(b) > 0) {
             throw new IllegalArgumentException("Die untere Schranke muss kleiner als die obere Schranke sein.");
         }
-        // Kontrolle das a > 0
+        // Kontrolle, dass a ≥ 0
         if (a.compareTo(BigInteger.ZERO) < 0) {
             throw new IllegalArgumentException("Die untere Schranke muss größer oder gleich 0 sein.");
         }
 
+        long startTime = System.currentTimeMillis();  // Zeitmessung starten
         BigInteger primeCandidate;
+        int attempts = 0;
         while (true) {
+            attempts++;
             primeCandidate = getRandomBigInteger(a, b);         // erzeugt zufällige ungerade Zahl
             if (istPrimzahl(primeCandidate, mrIterations)) {    // prüft, ob diese Zahl eine Primzahl ist
+                long duration = System.currentTimeMillis() - startTime;
+                System.out.println("Primzahl gefunden: " + primeCandidate);
+                System.out.println("Anzahl Versuche: " + attempts);
+                System.out.println("Benötigte Zeit: " + duration + " ms");
                 return primeCandidate;
             }
         }
     }
+
 
     /**
      * Generiert eine zufällige ungerade Zahl im Bereich [a, b].

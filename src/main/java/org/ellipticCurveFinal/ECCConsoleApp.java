@@ -1,96 +1,67 @@
 package org.ellipticCurveFinal;
 
-import java.math.BigInteger;
-import java.security.SecureRandom;
 import java.util.Scanner;
 
+/**
+ * Konsolenanwendung zur Demonstration der ECC-ElGamal-Verschlüsselung und -Entschlüsselung.
+ * Bietet folgende Funktionen:
+ * 1) Anzeige der Domain-Parameter (p, q, Generator G)
+ * 2) Anzeige des aktuellen Schlüsselpaares (privat & öffentlich)
+ * 3) Verschlüsselung eines Klartext-Strings
+ * 4) Entschlüsselung eines Base64-Chiffretexts
+ * 5) Beenden
+ */
 public class ECCConsoleApp {
 
     public static void main(String[] args) {
-        try {
-            // 1. Erzeuge eine sichere elliptische Kurve gemäß der Durchführungsverordnung.
-            // Hierbei wird p generiert, sodass p ≡ 5 mod 8 gilt, und q = N/8 (prim) berechnet.
-            int bitLength = 16; // Bitlänge von p (anpassbar)
-            int millerRabinIterations = 20;
-            SecureFiniteFieldEllipticCurve secureCurve = new SecureFiniteFieldEllipticCurve(bitLength, millerRabinIterations);
-            FiniteFieldEllipticCurve curve = secureCurve.getCurve();
-            System.out.println("Generierte Kurve: Z_p mit p = " + curve.getP());
-            System.out.println("Berechnete Untergruppenordnung q = " + secureCurve.getQ());
+        Scanner scanner = new Scanner(System.in);
+        ECCApi api = ECCApi.getInstance(1024, 20);
 
-            // 2. Wähle einen Basispunkt G aus der Kurve (ersten gefundenen gültigen Punkt, nicht unendlich).
-            ECPoint G = curve.findGenerator();
-            System.out.println("Basispunkt G: " + G);
+        boolean running = true;
+        while (running) {
+            System.out.println("\n=== ECC-ElGamal Konsole ===");
+            System.out.println("1) Domain-Parameter anzeigen");
+            System.out.println("2) Schlüsselpaar anzeigen");
+            System.out.println("3) Verschlüsseln");
+            System.out.println("4) Entschlüsseln");
+            System.out.println("5) Beenden");
+            System.out.print("Auswahl: ");
 
-
-            // 3. Schlüsselgenerierung:
-            // Erzeuge einen privaten Schlüssel d (zufällig in [1, q-1]) und berechne den öffentlichen Schlüssel Q = d * G.
-            SecureRandom random = new SecureRandom();
-            BigInteger q = secureCurve.getQ();
-            BigInteger d;
-            do {
-                d = new BigInteger(q.bitLength(), random);
-            } while (d.compareTo(BigInteger.ONE) < 0 || d.compareTo(q) >= 0);
-            ECPoint Q = G.multiply(d, curve);
-            System.out.println("Private Key d: " + d);
-            System.out.println("Public Key Q: " + Q);
-
-            // 4. Verschlüsselung:
-            // Lies vom Benutzer eine Nachricht ein.
-            Scanner scanner = new Scanner(System.in);
-            System.out.println("Gib die Nachricht zum Verschlüsseln ein:");
-            String plaintext = scanner.nextLine();
-            byte[] plaintextBytes = plaintext.getBytes("UTF-8");
-
-            // Erzeuge einen ephemeral Schlüssel k (zufällig in [1, q-1]).
-            BigInteger k;
-            do {
-                k = new BigInteger(q.bitLength(), random);
-            } while (k.compareTo(BigInteger.ONE) < 0 || k.compareTo(q) >= 0);
-            // Berechne R = k * G und den gemeinsamen Geheimwert: S = k * Q.
-            ECPoint R = G.multiply(k, curve);
-            ECPoint sharedSecretEnc = Q.multiply(k, curve); // k * Q
-            BigInteger sharedSecretX = sharedSecretEnc.getX();
-            // Verwende die x-Koordinate des gemeinsamen Geheimnisses als symmetrischen Schlüssel (in Byteform).
-            byte[] keyBytes = sharedSecretX.toByteArray();
-            // Verschlüssele via einfacher XOR-Verschlüsselung.
-            byte[] ciphertextBytes = xorBytes(plaintextBytes, keyBytes);
-            System.out.println("Ciphertext (hex): " + bytesToHex(ciphertextBytes));
-            System.out.println("Ephemeral public value R: " + R);
-
-            // 5. Entschlüsselung:
-            // Empfänger berechnet S' = d * R (sollte identisch mit S = k * Q sein).
-            ECPoint sharedSecretDec = R.multiply(d, curve);
-            BigInteger sharedSecretXDec = sharedSecretDec.getX();
-            byte[] keyBytesDec = sharedSecretXDec.toByteArray();
-            byte[] decryptedBytes = xorBytes(ciphertextBytes, keyBytesDec);
-            String decryptedMessage = new String(decryptedBytes, "UTF-8");
-            System.out.println("Decrypted message: " + decryptedMessage);
-
-        } catch (Exception e) {
-            e.printStackTrace();
+            String choice = scanner.nextLine().trim();
+            switch (choice) {
+                case "1":
+                    System.out.println("--- Domain-Parameter ---");
+                    System.out.println(api.getDomainParametersDisplay());
+                    break;
+                case "2":
+                    System.out.println("--- Schlüsselpaar ---");
+                    System.out.println(api.getPublicKeyDisplay());
+                    System.out.println(api.getPrivateKeyDisplay());
+                    break;
+                case "3":
+                    System.out.print("Klartext eingeben: ");
+                    String plaintext = scanner.nextLine();
+                    String cipherText = api.encrypt(plaintext);
+                    System.out.println("Chiffretext (Base64): \n" + cipherText);
+                    break;
+                case "4":
+                    System.out.print("Chiffretext (Base64) eingeben: ");
+                    String input = scanner.nextLine();
+                    try {
+                        String decrypted = api.decrypt(input);
+                        System.out.println("Entschlüsselter Klartext: \n" + decrypted);
+                    } catch (Exception e) {
+                        System.out.println("Fehler bei der Entschlüsselung: " + e.getMessage());
+                    }
+                    break;
+                case "5":
+                    running = false;
+                    System.out.println("Beende Anwendung. Auf Wiedersehen!");
+                    break;
+                default:
+                    System.out.println("Ungültige Auswahl. Bitte 1-5 wählen.");
+            }
         }
-    }
-
-    /**
-     * Hilfsmethode: XOR-Verschlüsselung/Entschlüsselung.
-     * Wiederholt den Schlüssel, falls notwendig.
-     */
-    private static byte[] xorBytes(byte[] data, byte[] key) {
-        byte[] output = new byte[data.length];
-        for (int i = 0; i < data.length; i++) {
-            output[i] = (byte) (data[i] ^ key[i % key.length]);
-        }
-        return output;
-    }
-
-    /**
-     * Hilfsmethode: Wandelt ein Byte-Array in eine Hexadezimaldarstellung um.
-     */
-    private static String bytesToHex(byte[] bytes) {
-        StringBuilder sb = new StringBuilder();
-        for (byte b : bytes) {
-            sb.append(String.format("%02X", b));
-        }
-        return sb.toString();
+        scanner.close();
     }
 }
