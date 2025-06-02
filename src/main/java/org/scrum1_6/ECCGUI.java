@@ -104,7 +104,9 @@ public class ECCGUI {
     private void encryptECC() {
         long start = System.currentTimeMillis();
         String klartext = inputArea.getText();
-        String chiffrat = "[Verschlüsselt] " + api.encrypt(klartext);;
+        String chiffrat = "[Verschlüsselt] " + api.encrypt(klartext);
+        api.sign(klartext);
+        api.verify(klartext);
         outputArea.setText(chiffrat);
         publicKeyArea.setText("Öffentlicher ECC-Schlüssel: (x, y)");
         privateKeyArea.setText("Privater ECC-Schlüssel: d");

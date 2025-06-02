@@ -32,6 +32,12 @@ public class ECCApi {
     private int bitlength = 256;
     private int millerRabin = 20;
 
+    public ECCSignature.Signature getSig() {
+        return sig;
+    }
+
+    private ECCSignature.Signature sig;
+
     private ECCApi(int bitlength, int millerRabin) {
         initialize(bitlength, millerRabin);
     }
@@ -233,7 +239,41 @@ public class ECCApi {
         );
     }
 
+    /**
+     * Signiert eine Nachricht mit dem aktuellen Private Key (ECDSA).
+     *
+     * @param message  Die zu signierende Nachricht (UTF-8).
+     * @return ECDSA-Signatur (r,s).
+     */
+    public void sign(String message) {
+        // Verwendet ECCSignature.sign(message, x, q, G, curve) → liefert (r,s)
+        this.sig = ECCSignature.sign(
+                message,
+                this.privateKey,
+                this.q,
+                this.generator,
+                this.curve
+        );
+    }
 
+    /**
+     * Verifiziert eine gegebene ECDSA-Signatur (r,s) für die Nachricht
+     * mit dem aktuellen Public Key.
+     *
+     * @param message  Die signierte Nachricht (UTF-8).
+     * @return true, falls gültig; false sonst.
+     */
+    public boolean verify(String message) {
+        // Verwendet ECCSignature.verify(message, (r,s), Y, q, G, curve)
+        return ECCSignature.verify(
+                message,
+                this.sig,
+                this.publicKey,
+                this.q,
+                this.generator,
+                this.curve
+        );
+    }
 
     // Getter für direkte Nutzung
     public BigInteger getP() { return p; }
