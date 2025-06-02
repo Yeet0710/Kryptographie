@@ -192,7 +192,12 @@ public class FiniteFieldEllipticCurve {
                 }
                 Gaussian g0 = new Gaussian(p, BigInteger.ZERO);
                 Gaussian g1 = new Gaussian(w, BigInteger.ONE);
-                // Euklidischer Algorithmus in ZZ[i]
+                /**
+                 *        Euklidischer Algorithmus in ZZ[i]
+                 * 1. Teile die größere Zahl durch die kleinere und ermittle den Rest
+                 * 2. Wiederholen mit kleinerer Zahl als Divisor und Rest als Dividend
+                 * 3. Fortfahren bis Rest = 0
+                 */
                 while (!g1.isZero()) {
                     BigInteger denom = g1.norm();
                     BigInteger numRe = g0.re.multiply(g1.re).add(g0.im.multiply(g1.im));
