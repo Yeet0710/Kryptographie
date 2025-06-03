@@ -5,7 +5,10 @@ import org.ellipticCurveFinal.ECCSignature;
 
 import javax.swing.*;
 import java.awt.*;
+import java.math.BigInteger;
+import java.util.Arrays;
 import java.util.concurrent.Flow;
+import java.util.stream.Stream;
 
 public class ECCGUI {
 
@@ -15,9 +18,11 @@ public class ECCGUI {
     private final JTextArea publicKeyArea;
     private final JTextArea privateKeyArea;
     private final JLabel durationLabel;
+    private final JLabel allgemeinLabel;
     // Felder für Bitlänge und Miller-Rabin
     private final JTextField bitlengthField;
     private final JTextField millerRabinField;
+    private final JTextArea sigField;
 
     private ECCApi api;
     private ECCSignature.Signature lastSignature;
@@ -51,6 +56,16 @@ public class ECCGUI {
         JButton setParamsButton = createButton("Parameter setzen", e -> setParameters());
         paramPanel.add(setParamsButton);
 
+        paramPanel.add(new JLabel("<html><b>Signatur:</b></html>"));
+        sigField = new JTextArea(2, 40);
+        paramPanel.add(sigField);
+
+        JButton signButton = createButton("Sign", e -> sign());
+        paramPanel.add(signButton);
+
+        JButton verifyButton = createButton("Verify", e -> verify());
+        paramPanel.add(verifyButton);
+
         // Ganz oben ins mainPanel einfügen
         mainPanel.add(paramPanel);
 
@@ -67,17 +82,61 @@ public class ECCGUI {
 
         // Schlüsselanzeigen
         mainPanel.add(createRow("Öffentlicher Schlüssel:", publicKeyArea = createTextField("[Wird gesetzt]"), null));
+        publicKeyArea.setText(api.getPublicKeyDisplay());
         mainPanel.add(createRow("Privater Schlüssel:", privateKeyArea = createTextField("[Wird gesetzt]"), null));
+        privateKeyArea.setText(api.getPrivateKeyDisplay());
+
+        //Schlüssel der Informatiker laden
+        JPanel schluesselLadenPanel = new JPanel();
+        schluesselLadenPanel.add(createButton("Schlüssel der Informatiker laden", e -> loadKeys()));
+        mainPanel.add(schluesselLadenPanel);
+
+        JPanel anzeigePanel = new JPanel();
 
         // Daueranzeige
         durationLabel = new JLabel("Dauer: - ms");
         durationLabel.setFont(new Font("Arial", Font.BOLD, 14));
         durationLabel.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 10));
-        mainPanel.add(durationLabel);
+        anzeigePanel.add(durationLabel);
+
+        //Allgemeine Anzeige
+        allgemeinLabel = new JLabel("Allgemeine Ausgabe: ");
+        allgemeinLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        allgemeinLabel.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 10));
+        anzeigePanel.add(allgemeinLabel);
+        mainPanel.add(anzeigePanel);
 
         frame.add(new JScrollPane(mainPanel));
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
+    }
+
+    private void loadKeys() {
+        api.loadDataFromFile();
+        publicKeyArea.setText(api.getPublicKeyDisplay());
+        privateKeyArea.setText(api.getPrivateKeyDisplay());
+    }
+
+    private void verify() {
+        String text = sigField.getText();
+        String[] lines = text.split("\n");
+        String r = lines[0].replace("r: ", "").trim();
+        String s = lines[1].replace("s: ", "").trim();
+        BigInteger rB = new BigInteger(r);
+        BigInteger sB = new BigInteger(s);
+        api.setSig(new ECCSignature.Signature(rB, sB));
+        if (api.verify(inputArea.getText())) {
+            allgemeinLabel.setText("Allgemeine Ausgabe: Verfikation erfolgreich!");
+        } else {
+            allgemeinLabel.setText("Allgemeine Ausgabe: Verfikation nicht erfolgreich!");
+        }
+    }
+
+    private void sign() {
+        String input = inputArea.getText();
+        api.sign(input);
+        sigField.setText("r: " + api.getSig().r.toString() + "\n"
+                        + "s: " + api.getSig().s.toString());
     }
 
     private void setParameters() {
@@ -86,8 +145,8 @@ public class ECCGUI {
         //Neue Instanz erzeugen
         api.generateKeysAndParameters(bits, mr);
         //Schlüssel anzeigen
-        publicKeyArea.setText("Öffentlicher Schlüssel: " + api.getPublicKeyDisplay());
-        privateKeyArea.setText("Privater Schlüssel: " + api.getPrivateKeyDisplay());
+        publicKeyArea.setText(api.getPublicKeyDisplay());
+        privateKeyArea.setText(api.getPrivateKeyDisplay());
     }
 
 
