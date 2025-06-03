@@ -175,7 +175,7 @@ public class FiniteFieldEllipticCurve {
             }
 
             /**
-             * 2(a): Stelle p als Summe zweier Quadrate dar mittels Algorithmus 3.2 aus Kryptographie2.
+             * 2(a): Stelle p als Summe zweier Quadrate dar mittels Kapitel 3.2 aus Kryptographie2.
              *
              * @param p Eine Primzahl, p ≡ 1 mod 4.
              * @return SumOfSquares-Instanz mit (x,y), sodass p = x² + y² und x gerade, y ungerade.
