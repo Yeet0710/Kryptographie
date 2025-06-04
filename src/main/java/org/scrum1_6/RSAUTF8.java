@@ -26,7 +26,7 @@ public class RSAUTF8 {
     public RSAUTF8(int bitLength) {
         try {
             RSAUtils.loadKeysFromFiles();
-            RSAUtils2047.loadKeysFromFiles();
+           // RSAUtils2047.loadKeysFromFiles();
         } catch (Exception e) {
             System.out.println("Fehler beim Laden der Schlüssel: " + e.getMessage());
         }

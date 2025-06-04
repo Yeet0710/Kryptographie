@@ -31,6 +31,7 @@ public class ECCSignature {
 
     /**
      * Signiert eine Nachricht M mit privatem Schlüssel x, Parameter q, Generator g und Kurve.
+     * Entsprechend K2-Algorithmus 3.5
      *
      * @param message     Die zu signierende Nachricht (als UTF-8-String).
      * @param privateKey  Privater Schlüssel x ∈ ℤ_q.
@@ -87,6 +88,7 @@ public class ECCSignature {
 
     /**
      * Verifiziert eine ECDSA-Signatur (r, s) zur Nachricht M mit öffentlichem Schlüssel y, Ordnung q, Generator g und Kurve.
+     * Entsprechend K2-Algorithmus 3.5
      *
      * @param message     Die signierte Nachricht (als UTF-8-String).
      * @param sig         Die Signatur (r, s).

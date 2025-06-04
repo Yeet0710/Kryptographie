@@ -124,11 +124,6 @@ public class ECCElgamalBlockCipher {
 
         String b64 = Base64.getEncoder().encodeToString(outBytes.toByteArray());
 
-        System.out.println("Generator: " + generator.getX() + ", " + generator.getY());
-        System.out.println("PublicKey: " + publicKey);
-        System.out.println("blockSize: " + blockSize);
-        System.out.println("chunkSize: " + chunkSize + "   (→ Tuple verarbeitet je " + (2 * chunkSize) + " Bytes)");
-
         return new Result(ax, ay, b1, b2, b64);
     }
 
@@ -216,10 +211,6 @@ public class ECCElgamalBlockCipher {
         while (trim > 0 && res[trim - 1] == 0x00) {
             trim--;
         }
-
-        System.out.println("PrivateKey: " + privateKey);
-        System.out.println("blockSize: " + blockSize);
-        System.out.println("chunkSize: " + chunkSize + "   (→ Ausgabe je " + (2 * chunkSize) + " Bytes pro Tuple)");
 
         return new String(res, 0, trim, StandardCharsets.UTF_8);
     }

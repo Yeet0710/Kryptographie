@@ -36,6 +36,10 @@ public class ECCApi {
         return sig;
     }
 
+    public void setSig(ECCSignature.Signature sig) {
+        this.sig = sig;
+    }
+
     private ECCSignature.Signature sig;
 
     private ECCApi(int bitlength, int millerRabin) {
@@ -105,6 +109,16 @@ public class ECCApi {
             System.out.println("Fehler beim Parsen des Private Key: " + nfe.getMessage());
             return false;
         }
+    }
+
+
+
+    public void generateKeysAndParameters(int bitlength, int millerRabin) {
+        setBitlength(bitlength);
+        setMillerRabin(millerRabin);
+        generateDomainParameters();
+        generateKeyPair();
+        saveDomainParameters();
     }
 
     private void generateDomainParameters() {
@@ -273,6 +287,73 @@ public class ECCApi {
                 this.generator,
                 this.curve
         );
+    }
+
+    public boolean loadDataFromFile() {
+        String pubKeyFile = "ecc_32bit.pub";
+        String privKeyFile = "ecc_32bit.key";
+        Path pfad = Path.of(pubKeyFile);
+        Path pfad2 = Path.of(privKeyFile);
+        if (!Files.exists(pfad)) {
+            System.out.println("Datei für Public Key nicht gefunden: " + pubKeyFile);
+            return false;
+        }
+        if (!Files.exists(pfad2)) {
+            System.out.println("Datei für Private Key nicht gefunden: " + privKeyFile);
+        }
+
+        // Lese die ganze Zeile (CSV) ein (PublicKey):
+        String line = null;
+        try {
+            line = Files.readString(pfad, StandardCharsets.UTF_8).trim();
+        } catch (Exception e) {
+            System.out.println("Fehler beim einlesen der Datei (PublicKey): " + e);
+        }
+        // Erwarte genau 6 Felder (durch Komma getrennt) (PublicKey)
+        String[] parts = line.split(",");
+        if (parts.length != 6) {
+            System.out.println("Ungültiges Public Key‐Format (erwartet 6 Felder): " + line);
+            return false;
+        }
+
+        // Lese die ganze Zeile (CSV) ein (PrivateKey):
+        String line2 = null;
+        try {
+            line2 = Files.readString(pfad2, StandardCharsets.UTF_8).trim();
+        } catch (Exception e) {
+            System.out.println("Fehler beim einlesen der Datei (PrivateKey): " + e);
+        }
+        String[] parts2 = line2.split(",");
+        if (parts2.length != 5) {
+            System.out.println("Ungültiges Private Key-Format (erwartet 5 Felder): " + line2);
+            return false;
+        }
+
+        // Konvertiere in BigInteger und ECPoint:
+        try {
+            // 1) Domain‐Parameter:
+            p = new BigInteger(parts[0]);
+            q = new BigInteger(parts[1]);
+            BigInteger gx = new BigInteger(parts[2]);
+            BigInteger gy = new BigInteger(parts[3]);
+            generator = new FiniteFieldECPoint(gx, gy);
+
+            // 2) Public Key:
+            BigInteger yx = new BigInteger(parts[4]);
+            BigInteger yy = new BigInteger(parts[5]);
+            publicKey = new FiniteFieldECPoint(yx, yy);
+
+            // 3) Rekonstruiere das Kurvenobjekt:
+            curve = new FiniteFieldEllipticCurve(p);
+
+            // 4) Lese den PrivateKey ein
+            privateKey = new BigInteger(parts2[4]);
+
+            return true;
+        } catch (NumberFormatException nfe) {
+            System.out.println("Fehler beim Parsen des Public Key: " + nfe.getMessage());
+            return false;
+        }
     }
 
     // Getter für direkte Nutzung

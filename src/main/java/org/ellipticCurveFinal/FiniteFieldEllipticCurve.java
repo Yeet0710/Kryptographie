@@ -5,6 +5,8 @@ import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.scrum1_3.schnelleExponentiation.schnelleExponentiation;
+
 public class FiniteFieldEllipticCurve {
 
     // Feste Kurvenparameter: y^2 = x^3 - x
@@ -73,19 +75,36 @@ public class FiniteFieldEllipticCurve {
             // Zufälliges x in F_p
             BigInteger x = new BigInteger(p.bitLength(), random).mod(p);
             // r = x^3 - x mod p
-            BigInteger r = x.modPow(BigInteger.valueOf(3), p).subtract(x).mod(p);
+            BigInteger r = schnelleExponentiation(x, BigInteger.valueOf(3), p).subtract(x).mod(p);
             // Legendre-Symbol test: r^((p-1)/2) mod p == 1
-            if (!r.modPow(legExp, p).equals(BigInteger.ONE)) continue;
-            // Quadratwurzel für p ≡ 5 mod 8: y = r^((p+3)/8) mod p
-            BigInteger exp = p.add(BigInteger.valueOf(3)).divide(BigInteger.valueOf(8));
-            BigInteger y = r.modPow(exp, p);
-            // Falls nötig, nochmals prüfen
-            if (!y.modPow(BigInteger.valueOf(2), p).equals(r)) continue;
+            if (!schnelleExponentiation(r, legExp, p).equals(BigInteger.ONE)) continue;
+            // Bestimme ob r^((p-1)/4) = 1 oder -1 mod p
+            BigInteger exp4 = p.subtract(BigInteger.ONE).divide(BigInteger.valueOf(4));
+            BigInteger test = schnelleExponentiation(r, exp4, p);
+            BigInteger exp8 = p.add(BigInteger.valueOf(3)).divide(BigInteger.valueOf(8));
+            BigInteger y;
 
+            if (test.equals(BigInteger.ONE)) {
+                //Erster Fall: 1
+                //y = r^(p + 3) / 8 mod p
+                y = schnelleExponentiation(r, exp8, p);
+            } else if (test.equals(p.subtract(BigInteger.ONE))) {
+                //Zweiter Fall: -1
+                //y = ((p + 1) / 2) * (4r)^((p + 3) / 8) mod p
+                BigInteger fourR = r.multiply(BigInteger.valueOf(4)).mod(p);
+                y = schnelleExponentiation(fourR, exp8, p).multiply(p.add(BigInteger.ONE).divide(BigInteger.TWO)).mod(p);
+            } else {
+                //Weder 1 noch -1
+                continue;
+            }
+            // Falls nötig, nochmals prüfen
+            if (!schnelleExponentiation(y, BigInteger.TWO, p).equals(r)) continue;
+
+            // Setzen des Punktes
             ECPoint g0 = new FiniteFieldECPoint(x, y).normalize(this);
             if (!isValidPoint(g0)) continue;
 
-            // Kofaktor-Multiplikation
+            // Kofaktor-Multiplikation. Nur Punkte mit Ordnung, die einen Faktor von q enthalten überleben das hier
             ECPoint g = g0.multiply(eight, this);
             // Rückgabe, sobald g != O
             if (!(g instanceof InfinitePoint)) {
@@ -120,13 +139,13 @@ public class FiniteFieldEllipticCurve {
      * Berechnet die Gruppenordnung N = p + 1 - h gemäß der Durchführungsverordnung.
      * Dabei wird p als Summe zweier Quadrate dargestellt: p = x² + y².
      * h wird anhand der Kongruenzklassen von x und y modulo 4 bestimmt.
-     * (Hinweis: Diese naive Darstellung funktioniert nur für kleine p.)
      */
     public BigInteger calculateGroupOrder() {
         SumOfSquares rep = SumOfSquares.represent(p);
         BigInteger x = rep.x;
         BigInteger y = rep.y;
 
+        // h setzen nach den Bedingungen aus dem Korollar
         BigInteger h;
         if (x.mod(BigInteger.valueOf(4)).equals(BigInteger.ZERO)) {
             if (y.mod(BigInteger.valueOf(4)).equals(BigInteger.valueOf(3))) {
@@ -141,6 +160,7 @@ public class FiniteFieldEllipticCurve {
                 h = y.multiply(BigInteger.valueOf(-2));
             }
         }
+        // N berechnen
         return p.add(BigInteger.ONE).subtract(h);
     }
 
@@ -155,7 +175,7 @@ public class FiniteFieldEllipticCurve {
             }
 
             /**
-             * 2(a): Stelle p als Summe zweier Quadrate dar mittels Algorithmus 3.2 aus Kryptographie2.pdf.
+             * 2(a): Stelle p als Summe zweier Quadrate dar mittels Kapitel 3.2 aus Kryptographie2.
              *
              * @param p Eine Primzahl, p ≡ 1 mod 4.
              * @return SumOfSquares-Instanz mit (x,y), sodass p = x² + y² und x gerade, y ungerade.
@@ -163,6 +183,7 @@ public class FiniteFieldEllipticCurve {
             public static SumOfSquares represent(BigInteger p) {
                 BigInteger ONE = BigInteger.ONE;
                 BigInteger FOUR = BigInteger.valueOf(4);
+                // Überprüfung ob p kongruent 1 mod 4 ist
                 if (!p.mod(FOUR).equals(ONE)) {
                     throw new IllegalArgumentException("p muss ≡ 1 mod 4 sein.");
                 }
@@ -192,7 +213,13 @@ public class FiniteFieldEllipticCurve {
                 }
                 Gaussian g0 = new Gaussian(p, BigInteger.ZERO);
                 Gaussian g1 = new Gaussian(w, BigInteger.ONE);
-                // Euklidischer Algorithmus in ZZ[i]
+
+                /**
+                 * Euklidischer Algorithmus in ZZ[i]
+                 * 1. Teile die größere Zahl durch die kleinere und ermittle den Rest
+                 * 2. Wiederholen mit kleinerer Zahl als Divisor und Rest als Dividend
+                 * 3. Fortfahren bis Rest = 0
+                 */
                 while (!g1.isZero()) {
                     BigInteger denom = g1.norm();
                     BigInteger numRe = g0.re.multiply(g1.re).add(g0.im.multiply(g1.im));

@@ -98,7 +98,7 @@ public class SecureFiniteFieldEllipticCurve {
 
     /**
      * Miller–Rabin-Test: prüft, ob n vermutlich prim ist.
-     * Verwendet eure schnelleExponentiation für a^d mod n.
+     * Verwendet die schnelleExponentiation für a^d mod n.
      *
      * @param n          Ungerade Zahl > 2
      * @param iterations Anzahl der Test-Runden
@@ -112,7 +112,9 @@ public class SecureFiniteFieldEllipticCurve {
 
         // Schreibe n-1 = 2^s * d mit d ungerade
         BigInteger d = n.subtract(BigInteger.ONE);
+        // Gibt den Faktor wieder, da die Anzahl der Nullen am Ende gezählt werden
         int s = d.getLowestSetBit();
+        // Der Rest ist dann d
         d = d.shiftRight(s);
 
         for (int i = 0; i < iterations; i++) {
